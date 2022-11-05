@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+HELP="Usage: $0 [OPTION...] PACKAGE_NAME
+Find PACKAGE_NAME in available nix packages and sort results by relevancy.
+
+  -c, --color          force color preservation
+  -h, --help           display this help message and exit
+  -s, --scan           query packages and cache results
+  -n, --no-separator   don't separate matches with a newline"
+
+NIX_PACKAGE_QUERY_FOLDER="${HOME}/.nix-package-query"
+NIX_PACKAGE_QUERY_CACHE_FILE="query.cache"
+
+# EXACT matches match nixos.PACKAGE_NAME
+EXACT_COLOR="01;35"
+
+# DIRECT matches match nixos.PACKAGE_NAME-other-stuff
+DIRECT_COLOR="01;34"
+
+# INDIRECT matches match nixos.foo-PACKAGE_NAME-other-stuff
+INDIRECT_COLOR="01;32"
+
+# Separate matches with a newline
+PRINT_SEPARATOR=true
+
+# Display help and exit if no command line arguments are given
+if [ $# -eq 0 ]; then
+	echo "$HELP"
+	exit
+fi
+
+# Create cache folder, if not exists
+mkdir -p "$NIX_PACKAGE_QUERY_FOLDER"
+
+scan() {
+	echo "Caching packages..."
+	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
+	nix-env -qaP > "/tmp/$NIX_PACKAGE_QUERY_CACHE_FILE"
+	mv "/tmp/$NIX_PACKAGE_QUERY_CACHE_FILE" "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE"
+	echo "Done caching"
+}
+
+COLOR=auto
+
+for ARGUMENT in "$@"
+do
+	if [ "$ARGUMENT" == "-h" ] || [ "$ARGUMENT" == "--help" ]; then
+		echo "$HELP"
+		exit
+	elif [ "$ARGUMENT" == "-s" ] || [ "$ARGUMENT" == "--scan" ]; then
+		SCAN=true
+	elif [ "$ARGUMENT" == "-c" ] || [ "$ARGUMENT" == "--color" ]; then
+		COLOR=always
+	elif [ "$ARGUMENT" == "-n" ] || [ "$ARGUMENT" == "--no-separator" ]; then
+		PRINT_SEPARATOR=false
+	else
+		STRING=$ARGUMENT
+	fi
+done
+
+# Query packages and store them in the cache file if requested, or the cache file does not exist yet.
+if [ "$SCAN" == "true" ] || ! [ -f "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE" ]; then
+	scan
+fi
+
+if [ "$STRING" ]; then
+	# Find any matches in the cache
+	# `column -t` shrinks whitespace between columns
+	MATCHES=$(cat "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE" | grep "$STRING" | column -t)
+
+	# Separate matches 
+	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
+	DIRECT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING" | grep -v "^[^\.]*\.$STRING ")
+	INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$STRING")
+
+	if [ "$EXACT" ]; then
+		# Print EXACT matches in their own color
+		echo "$EXACT" | GREP_COLOR="$EXACT_COLOR" grep --color=$COLOR "$STRING"
+	fi
+	if [ "$DIRECT" ]; then
+		# Print separator if requested and needed
+		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+		# Print DIRECT matches in their own color
+		echo "$DIRECT" | GREP_COLOR="$DIRECT_COLOR" grep --color=$COLOR "$STRING"
+	fi
+	if [ "$INDIRECT" ]; then
+		# Print separator if requested and needed
+		if ( [ "$EXACT" ] || [ "$DIRECT" ] ) && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+		# Print INDIRECT matches in their own color
+		echo "$INDIRECT" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR "$STRING"
+	fi
+fi
