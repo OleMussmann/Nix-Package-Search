@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 HELP="Usage: `basename ${0}` [OPTION...] PACKAGE_NAME
-Find PACKAGE_NAME in available nix packages and sort results by relevancy.
+Find PACKAGE_NAME in available nix packages and sort results by relevance.
 
   -c, --color          force color preservation
   -h, --help           display this help message and exit
