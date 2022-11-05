@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-HELP="Usage: $0 [OPTION...] PACKAGE_NAME
+HELP="Usage: `basename ${0}` [OPTION...] PACKAGE_NAME
 Find PACKAGE_NAME in available nix packages and sort results by relevancy.
 
   -c, --color          force color preservation
