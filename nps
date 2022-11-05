@@ -5,11 +5,11 @@ Find PACKAGE_NAME in available nix packages and sort results by relevance.
 
   -c, --color          force color preservation
   -h, --help           display this help message and exit
-  -s, --scan           query packages and cache results
-  -n, --no-separator   don't separate matches with a newline"
+  -n, --no-separator   don't separate matches with a newline
+  -s, --scan           query packages and cache results"
 
-NIX_PACKAGE_QUERY_FOLDER="${HOME}/.nix-package-query"
-NIX_PACKAGE_QUERY_CACHE_FILE="query.cache"
+NIX_PACKAGE_SEARCH_FOLDER="${HOME}/.nix-package-search"
+NIX_PACKAGE_SEARCH_CACHE_FILE="nps.cache"
 
 # EXACT matches match nixos.PACKAGE_NAME
 EXACT_COLOR="01;35"
@@ -30,13 +30,13 @@ if [ $# -eq 0 ]; then
 fi
 
 # Create cache folder, if not exists
-mkdir -p "$NIX_PACKAGE_QUERY_FOLDER"
+mkdir -p "$NIX_PACKAGE_SEARCH_FOLDER"
 
 scan() {
 	echo "Caching packages..."
 	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP > "/tmp/$NIX_PACKAGE_QUERY_CACHE_FILE"
-	mv "/tmp/$NIX_PACKAGE_QUERY_CACHE_FILE" "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE"
+	nix-env -qaP > "/tmp/$NIX_PACKAGE_SEARCH_CACHE_FILE"
+	mv "/tmp/$NIX_PACKAGE_SEARCH_CACHE_FILE" "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE"
 	echo "Done caching"
 }
 
@@ -59,14 +59,14 @@ do
 done
 
 # Query packages and store them in the cache file if requested, or the cache file does not exist yet.
-if [ "$SCAN" == "true" ] || ! [ -f "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE" ]; then
+if [ "$SCAN" == "true" ] || ! [ -f "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" ]; then
 	scan
 fi
 
 if [ "$STRING" ]; then
 	# Find any matches in the cache
 	# `column -t` shrinks whitespace between columns
-	MATCHES=$(cat "$NIX_PACKAGE_QUERY_FOLDER/$NIX_PACKAGE_QUERY_CACHE_FILE" | grep "$STRING" | column -t)
+	MATCHES=$(cat "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" | grep "$STRING" | column -t)
 
 	# Separate matches 
 	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
