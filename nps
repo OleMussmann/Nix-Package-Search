@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-HELP="Usage: `basename ${0}` [OPTION...] PACKAGE_NAME
+HELP="Usage: $(basename "${0}") [OPTION...] PACKAGE_NAME
 Find PACKAGE_NAME in available nix packages and sort results by relevance.
 
   -c, --color          force color preservation
@@ -66,7 +66,7 @@ fi
 if [ "$STRING" ]; then
 	# Find any matches in the cache
 	# `column -t` shrinks whitespace between columns
-	MATCHES=$(cat "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" | grep "$STRING" | column -t)
+	MATCHES=$(grep "$STRING" "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" | column -t)
 
 	# Separate matches 
 	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
@@ -85,7 +85,7 @@ if [ "$STRING" ]; then
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
-		if ( [ "$EXACT" ] || [ "$DIRECT" ] ) && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 		# Print INDIRECT matches in their own color
 		echo "$INDIRECT" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR "$STRING"
 	fi
