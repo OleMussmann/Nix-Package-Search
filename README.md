@@ -39,7 +39,7 @@ Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find
 
 ### Configuration
 
-For now certain settings are hard-coded in the script. Set color codes to `0` to remove highlighting and see [this excellent askubuntu post](https://askubuntu.com/questions/1042234/modifying-the-color-of-grep) for more color options.
+Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file. Set color codes to `0` to remove highlighting and see [this excellent askubuntu post](https://askubuntu.com/questions/1042234/modifying-the-color-of-grep) for more color options.
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
 Folder where the cache is stored. Default: `${HOME}/.nix-package-search`
@@ -47,16 +47,16 @@ Folder where the cache is stored. Default: `${HOME}/.nix-package-search`
 #### `NIX_PACKAGE_SEARCH_CACHE_FILE`
 File name of the cache. Default: `nps.cache`
 
-#### `EXACT_COLOR`
+#### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
 Color highlight of exact matches, matches `nixos.PACKAGE_NAME`. Default: `01;35` (purple)
 
-#### `DIRECT_COLOR`
+#### `NIX_PACKAGE_SEARCH_DIRECT_COLOR`
 Color highlight of direct matches, matches `nixos.PACKAGE_NAME-foo`. Default: `01;34` (blue)
 
-#### `INDIRECT_COLOR`
+#### `NIX_PACKAGE_SEARCH_INDIRECT_COLOR`
 Color highlight of indirect matches, matches `nixos.foo-PACKAGE_NAME-bar`. Default: `01;32` (green)
 
-#### `PRINT_SEPARATOR`
+#### `NIX_PACKAGE_SEARCH_PRINT_SEPARATOR`
 Whether to separate matching types by newlines. Default: `true`
 
 ## Contributing

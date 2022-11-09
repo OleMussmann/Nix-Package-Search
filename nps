@@ -8,20 +8,20 @@ Find PACKAGE_NAME in available nix packages and sort results by relevance.
   -n, --no-separator   don't separate matches with a newline
   -s, --scan           query packages and cache results"
 
-NIX_PACKAGE_SEARCH_FOLDER="${HOME}/.nix-package-search"
-NIX_PACKAGE_SEARCH_CACHE_FILE="nps.cache"
+SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
+CACHE_FILE="${NIX_PACKAGE_SEARCH_CACHE_FILE:-nps.cache}"
 
 # EXACT matches match nixos.PACKAGE_NAME
-EXACT_COLOR="01;35"
+EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
 
 # DIRECT matches match nixos.PACKAGE_NAME-other-stuff
-DIRECT_COLOR="01;34"
+DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
 
 # INDIRECT matches match nixos.foo-PACKAGE_NAME-other-stuff
-INDIRECT_COLOR="01;32"
+INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
 
 # Separate matches with a newline
-PRINT_SEPARATOR=true
+PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
 
 # Display help and exit if no command line arguments are given
 if [ $# -eq 0 ]; then
@@ -30,13 +30,13 @@ if [ $# -eq 0 ]; then
 fi
 
 # Create cache folder, if not exists
-mkdir -p "$NIX_PACKAGE_SEARCH_FOLDER"
+mkdir -p "$SEARCH_FOLDER"
 
 scan() {
 	echo "Caching packages..."
 	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP > "/tmp/$NIX_PACKAGE_SEARCH_CACHE_FILE"
-	mv "/tmp/$NIX_PACKAGE_SEARCH_CACHE_FILE" "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE"
+	nix-env -qaP > "/tmp/$CACHE_FILE"
+	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
 	echo "Done caching"
 }
 
@@ -59,14 +59,14 @@ do
 done
 
 # Query packages and store them in the cache file if requested, or the cache file does not exist yet.
-if [ "$SCAN" == "true" ] || ! [ -f "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" ]; then
+if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
 	scan
 fi
 
 if [ "$STRING" ]; then
 	# Find any matches in the cache
 	# `column -t` shrinks whitespace between columns
-	MATCHES=$(grep "$STRING" "$NIX_PACKAGE_SEARCH_FOLDER/$NIX_PACKAGE_SEARCH_CACHE_FILE" | column -t)
+	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" | column -t)
 
 	# Separate matches 
 	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
