@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# Columnize the first two columns, treat the rest as a third column without splitting on spaces.
-# Replace all spaces in the last column with the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions. (fingers crossed)
-# Unleash `column -t`. The third column will be kept intact.
-# Undo the replacement. Profit.
-# echo 'foo     bar     baz baa' | sed 's/  */\x01/3g' | column -t | sed 's/\x01/ /g'
-
 HELP="Usage: $(basename "${0}") [OPTION...] PACKAGE_NAME
 Find PACKAGE_NAME in available nix packages and sort results by relevance.
 
@@ -18,28 +12,28 @@ channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
   -s, --scan           query packages and cache results"
 
 SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
+
 CACHE_FILE="${NIX_PACKAGE_SEARCH_CACHE_FILE:-nps.cache}"
 
-# Show the column PACKAGE_VERSION
 SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
 
-# Show the column PACKAGE_DESCRIPTION
 SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
 
-# EXACT matches match channel.PACKAGE_NAME
+# Color of EXACT matches, match channel.PACKAGE_NAME
 EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
 
-# DIRECT matches match channel.PACKAGE_NAME-other-stuff
+# Color of DIRECT matches, match channel.PACKAGE_NAME-other-stuff
 DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
 
-# INDIRECT matches match channel.foo-PACKAGE_NAME-other-stuff
+# Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-other-stuff
 INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
 
 # Separate matches with a newline?
 PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
 
 # Replace spaces in the description with this character for easier treatment of columns.
-# Here we use the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions. (fingers crossed)
+# Here we use the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions.
+# (fingers crossed)
 SPACE_PLACEHOLDER="\x01"
 
 # Display help and exit if no command line arguments are given
