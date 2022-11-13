@@ -91,14 +91,13 @@ do
 done
 
 # Query packages and store them in the cache file if requested, or the cache file does not exist yet.
-if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
-	scan
-fi
+if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then scan; fi
 
 if [ "$SHOW_PACKAGE_VERSION" == "true" ]; then VERSION_FILTER="\"\t\" \$2 "; else VERSION_FILTER= ; fi
 if [ "$SHOW_PACKAGE_DESCRIPTION" == "true" ]; then DESCRIPTION_FILTER="\"\t\" \$3"; else DESCRIPTION_FILTER= ; fi
 AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
 
+# If we have _any_ matches in the cache...
 if [ "$STRING" ]; then
 	# grep    Find any matches in the cache file.
 	# sed     Replace spaces in the description column (3rd).
@@ -115,19 +114,22 @@ if [ "$STRING" ]; then
 	INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$STRING")
 
 	if [ "$EXACT" ]; then
-		# Print EXACT matches in their own color
-		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color=$COLOR_MODE "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# grep Highlight EXACT matches in their own color.
+		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$DIRECT" ]; then
 		# Print separator if requested and needed
 		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
-		# Print DIRECT matches in their own color
-		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color=$COLOR_MODE "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# grep Highlight DIRECT matches in their own color.
+		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
 		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
-		# Print INDIRECT matches in their own color
-		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR_MODE "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# Highlight INDIRECT matches in their own color.
+		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 fi
