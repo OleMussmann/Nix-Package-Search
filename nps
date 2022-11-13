@@ -3,25 +3,59 @@
 HELP="Usage: $(basename "${0}") [OPTION...] PACKAGE_NAME
 Find PACKAGE_NAME in available nix packages and sort results by relevance.
 
+Lists up to three columns, the latter two being optional:
+channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
+
   -c, --color          force color preservation
   -h, --help           display this help message and exit
   -n, --no-separator   don't separate matches with a newline
   -s, --scan           query packages and cache results"
 
+# In which folder is the cache?
+# value: path
 SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
+
+# Name of the cache file
+# value: filename
 CACHE_FILE="${NIX_PACKAGE_SEARCH_CACHE_FILE:-nps.cache}"
 
-# EXACT matches match nixos.PACKAGE_NAME
+# Show the PACKAGE_VERSION column
+# value: true | false
+SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
+
+# Show the PACKAGE_DESCRIPTION column
+# value: true | false
+SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
+
+# Color of EXACT matches, match channel.PACKAGE_NAME
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
 
-# DIRECT matches match nixos.PACKAGE_NAME-other-stuff
+# Color of DIRECT matches, match channel.PACKAGE_NAME-other-stuff
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
 
-# INDIRECT matches match nixos.foo-PACKAGE_NAME-other-stuff
+# Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-other-stuff
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
 
-# Separate matches with a newline
+# `grep` color mode, show search matches in color
+# value:
+#        never   Never show color
+#        always  Always show color
+#        auto    Only show color if stdout is in terminal, suppress if e.g. piped
+COLOR_MODE="${NIX_PACKAGE_SEARCH_COLOR_MODE:-auto}"
+
+# Separate matches with a newline?
+# value: true | false
 PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
+
+# Replace spaces in the description with this character for easier treatment of columns.
+# Here we use the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions.
+# (fingers crossed)
+# value: ASCII character, but don't touch this one
+SPACE_PLACEHOLDER="\x01"
+
 
 # Display help and exit if no command line arguments are given
 if [ $# -eq 0 ]; then
@@ -35,12 +69,10 @@ mkdir -p "$SEARCH_FOLDER"
 scan() {
 	echo "Caching packages..."
 	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP > "/tmp/$CACHE_FILE"
+	nix-env -qaP --description > "/tmp/$CACHE_FILE"
 	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
 	echo "Done caching"
 }
-
-COLOR=auto
 
 for ARGUMENT in "$@"
 do
@@ -50,7 +82,7 @@ do
 	elif [ "$ARGUMENT" == "-s" ] || [ "$ARGUMENT" == "--scan" ]; then
 		SCAN=true
 	elif [ "$ARGUMENT" == "-c" ] || [ "$ARGUMENT" == "--color" ]; then
-		COLOR=always
+		COLOR_MODE=always
 	elif [ "$ARGUMENT" == "-n" ] || [ "$ARGUMENT" == "--no-separator" ]; then
 		PRINT_SEPARATOR=false
 	else
@@ -59,34 +91,45 @@ do
 done
 
 # Query packages and store them in the cache file if requested, or the cache file does not exist yet.
-if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
-	scan
-fi
+if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then scan; fi
 
+if [ "$SHOW_PACKAGE_VERSION" == "true" ]; then VERSION_FILTER="\"\t\" \$2 "; else VERSION_FILTER= ; fi
+if [ "$SHOW_PACKAGE_DESCRIPTION" == "true" ]; then DESCRIPTION_FILTER="\"\t\" \$3"; else DESCRIPTION_FILTER= ; fi
+AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
+
+# If we have _any_ matches in the cache...
 if [ "$STRING" ]; then
-	# Find any matches in the cache
-	# `column -t` shrinks whitespace between columns
-	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" | column -t)
+	# grep    Find any matches in the cache file.
+	# sed     Replace spaces in the description column (3rd).
+	# awk     Choose column to display.
+	# column  Align columns with minimum amount of spaces in between.
+	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" |
+		sed "s/  */$SPACE_PLACEHOLDER/3g" |
+		awk "$AWK_FILTER_STRING" |
+		column -t)
 
-	# Separate matches 
+	# Separate matches
 	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
 	DIRECT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING" | grep -v "^[^\.]*\.$STRING ")
 	INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$STRING")
 
 	if [ "$EXACT" ]; then
-		# Print EXACT matches in their own color
-		echo "$EXACT" | GREP_COLOR="$EXACT_COLOR" grep --color=$COLOR "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# grep Highlight EXACT matches in their own color.
+		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$DIRECT" ]; then
 		# Print separator if requested and needed
 		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
-		# Print DIRECT matches in their own color
-		echo "$DIRECT" | GREP_COLOR="$DIRECT_COLOR" grep --color=$COLOR "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# grep Highlight DIRECT matches in their own color.
+		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
 		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
-		# Print INDIRECT matches in their own color
-		echo "$INDIRECT" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR "$STRING"
+		# sed  Replace the placeholder by spaces again.
+		# Highlight INDIRECT matches in their own color.
+		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 fi
