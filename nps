@@ -11,30 +11,51 @@ channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
   -n, --no-separator   don't separate matches with a newline
   -s, --scan           query packages and cache results"
 
+# In which folder is the cache?
+# value: path
 SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
 
+# Name of the cache file
+# value: filename
 CACHE_FILE="${NIX_PACKAGE_SEARCH_CACHE_FILE:-nps.cache}"
 
+# Show the PACKAGE_VERSION column
+# value: true | false
 SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
 
+# Show the PACKAGE_DESCRIPTION column
+# value: true | false
 SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
 
 # Color of EXACT matches, match channel.PACKAGE_NAME
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
 
 # Color of DIRECT matches, match channel.PACKAGE_NAME-other-stuff
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
 
 # Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-other-stuff
+# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
 
+# `grep` color mode, show search matches in color
+# value:
+#        never   Never show color
+#        always  Always show color
+#        auto    Only show color if stdout is in terminal, suppress if e.g. piped
+COLOR_MODE="${NIX_PACKAGE_SEARCH_COLOR_MODE:-auto}"
+
 # Separate matches with a newline?
+# value: true | false
 PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
 
 # Replace spaces in the description with this character for easier treatment of columns.
 # Here we use the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions.
 # (fingers crossed)
+# value: ASCII character, but don't touch this one
 SPACE_PLACEHOLDER="\x01"
+
 
 # Display help and exit if no command line arguments are given
 if [ $# -eq 0 ]; then
@@ -53,8 +74,6 @@ scan() {
 	echo "Done caching"
 }
 
-COLOR=auto
-
 for ARGUMENT in "$@"
 do
 	if [ "$ARGUMENT" == "-h" ] || [ "$ARGUMENT" == "--help" ]; then
@@ -63,7 +82,7 @@ do
 	elif [ "$ARGUMENT" == "-s" ] || [ "$ARGUMENT" == "--scan" ]; then
 		SCAN=true
 	elif [ "$ARGUMENT" == "-c" ] || [ "$ARGUMENT" == "--color" ]; then
-		COLOR=always
+		COLOR_MODE=always
 	elif [ "$ARGUMENT" == "-n" ] || [ "$ARGUMENT" == "--no-separator" ]; then
 		PRINT_SEPARATOR=false
 	else
@@ -97,18 +116,18 @@ if [ "$STRING" ]; then
 
 	if [ "$EXACT" ]; then
 		# Print EXACT matches in their own color
-		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color=$COLOR "$STRING"
+		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color=$COLOR_MODE "$STRING"
 	fi
 	if [ "$DIRECT" ]; then
 		# Print separator if requested and needed
 		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 		# Print DIRECT matches in their own color
-		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color=$COLOR "$STRING"
+		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color=$COLOR_MODE "$STRING"
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
 		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 		# Print INDIRECT matches in their own color
-		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR "$STRING"
+		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color=$COLOR_MODE "$STRING"
 	fi
 fi
