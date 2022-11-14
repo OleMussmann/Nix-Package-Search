@@ -11,6 +11,19 @@ channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
   -n, --no-separator   don't separate matches with a newline
   -s, --scan           query packages and cache results"
 
+# Exit script on errors.
+set -o errexit
+
+# The return value of a pipeline is the value of the last
+# (rightmost) command to exit with a non-zero status.
+set -o pipefail
+
+# Don't overwrite files with `>`.
+set -o noclobber
+
+# Fail if trying to use unbound variables.
+set -o nounset
+
 # In which folder is the cache?
 # value: path
 SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
@@ -63,6 +76,7 @@ if [ $# -eq 0 ]; then
 	exit
 fi
 
+SCAN=false
 for ARGUMENT in "$@"
 do
 	if [ "$ARGUMENT" == "-h" ] || [ "$ARGUMENT" == "--help" ]; then
@@ -85,7 +99,7 @@ mkdir -p "$SEARCH_FOLDER"
 scan() {
 	echo "Caching packages..."
 	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP --description > "/tmp/$CACHE_FILE"
+	nix-env -qaP --description >| "/tmp/$CACHE_FILE"
 	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
 	echo "Done caching"
 }
