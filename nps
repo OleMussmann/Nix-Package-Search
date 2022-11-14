@@ -135,19 +135,21 @@ if [ "$STRING" ]; then
 		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 
 		# sed  Replace the placeholder by spaces again.
-		# grep Highlight DIRECT matches in their own color.
+		# grep Highlight DIRECT matches in their own color, but don't throw away lines without match
+		#      through the (escaped) "and" operator `|`.
 		echo "$DIRECT" |
 			sed "s/$SPACE_PLACEHOLDER/ /g" |
-			GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
+			GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING\|"
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
 		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 
 		# sed  Replace the placeholder by spaces again.
-		# Highlight INDIRECT matches in their own color.
+		# grep Highlight DIRECT matches in their own color, but don't throw away lines without match
+		#      through the (escaped) "and" operator `|`.
 		echo "$INDIRECT" |
 			sed "s/$SPACE_PLACEHOLDER/ /g" |
-			GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
+			GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING\|"
 	fi
 fi
