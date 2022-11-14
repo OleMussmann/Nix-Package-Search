@@ -63,17 +63,6 @@ if [ $# -eq 0 ]; then
 	exit
 fi
 
-# Create cache folder, if not exists
-mkdir -p "$SEARCH_FOLDER"
-
-scan() {
-	echo "Caching packages..."
-	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP --description > "/tmp/$CACHE_FILE"
-	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
-	echo "Done caching"
-}
-
 for ARGUMENT in "$@"
 do
 	if [ "$ARGUMENT" == "-h" ] || [ "$ARGUMENT" == "--help" ]; then
@@ -90,6 +79,17 @@ do
 	fi
 done
 
+# Create cache folder, if not exists
+mkdir -p "$SEARCH_FOLDER"
+
+scan() {
+	echo "Caching packages..."
+	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
+	nix-env -qaP --description > "/tmp/$CACHE_FILE"
+	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
+	echo "Done caching"
+}
+
 # Query packages and store them in the cache file if requested, or the cache file does not exist yet.
 if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then scan; fi
 
@@ -99,14 +99,10 @@ AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
 
 # If we have _any_ matches in the cache...
 if [ "$STRING" ]; then
-	# grep    Find any matches in the cache file.
-	# sed     Replace spaces in the description column (3rd).
-	# awk     Choose column to display.
-	# column  Align columns with minimum amount of spaces in between.
-	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" |
-		sed "s/  */$SPACE_PLACEHOLDER/3g" |
-		awk "$AWK_FILTER_STRING" |
-		column -t)
+	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" |  # Find any matches in the cache file.
+		sed "s/  */$SPACE_PLACEHOLDER/3g" |              # Replace spaces in the description column (3rd).
+		awk "$AWK_FILTER_STRING" |                       # Choose column to display.
+		column -t)                                       # Align columns with minimum amount of spaces in between.
 
 	# Separate matches
 	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
@@ -116,20 +112,28 @@ if [ "$STRING" ]; then
 	if [ "$EXACT" ]; then
 		# sed  Replace the placeholder by spaces again.
 		# grep Highlight EXACT matches in their own color.
-		echo "$EXACT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$STRING"
+		echo "$EXACT" |
+			sed "s/$SPACE_PLACEHOLDER/ /g" |
+			GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$DIRECT" ]; then
 		# Print separator if requested and needed
 		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+
 		# sed  Replace the placeholder by spaces again.
 		# grep Highlight DIRECT matches in their own color.
-		echo "$DIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
+		echo "$DIRECT" |
+			sed "s/$SPACE_PLACEHOLDER/ /g" |
+			GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 	if [ "$INDIRECT" ]; then
 		# Print separator if requested and needed
 		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+
 		# sed  Replace the placeholder by spaces again.
 		# Highlight INDIRECT matches in their own color.
-		echo "$INDIRECT" | sed "s/$SPACE_PLACEHOLDER/ /g" | GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
+		echo "$INDIRECT" |
+			sed "s/$SPACE_PLACEHOLDER/ /g" |
+			GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING"
 	fi
 fi
