@@ -1,21 +1,105 @@
 #!/usr/bin/env bash
 
-HELP="Usage: $(basename "${0}") [OPTION...] PACKAGE_NAME
-Find PACKAGE_NAME in available nix packages and sort results by relevance.
+VERSION="0.1"
 
-Lists up to three columns, the latter two being optional:
+HELP="Usage: nps [OPTION]... SEARCH_TERM
+Find SEARCH_TERM in available nix packages and sort results by relevance.
+
+List up to three columns, the latter two being optional:
 channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
 
-  -c, --color          force color preservation
-  -h, --help           display this help message and exit
-  -n, --no-separator   don't separate matches with a newline
-  -s, --scan           query packages and cache results"
+Mandatory arguments to long options are mandatory for short options too.
+
+  -c, --color=WHEN            highlight search matches in color,
+      --colour=WHEN             WHEN= 
+                                {always} always emit color codes
+                                 never   never emit color codes
+                                 auto    only emit color codes when stdout
+                                         is a terminal
+  -C, --columns=COLUMNS       choose columns to show,
+                                COLUMNS=
+                                {all}         show all columns
+                                 none         show only PACKAGE_NAME
+                                 version      also show PACKAGE_VERSION
+                                 description  also show PACKAGE_DESCRIPTION
+  -h, --help                  display a short help message and exit
+  -l, --long-help             display a long help message and exit
+  -s, --separator=true|false  separate match types with a newline {true}
+  -q, --query=true|false      query packages and cache results {false}
+  -v, --version               print \`nps\` version and exit"
+
+LONG_HELP="
+The \`nps --color=WHEN\` option follows the \`grep\` color option, except that
+here the WHEN option is mandatory. Be aware that color codes can trip up
+subsequent commands like \`grep\`, if they occur within a match string.
+
+Matches are sorted by type. Show 'exact' matches first, then 'direct' matches,
+and finally 'indirect' matches.
+  exact     channel.SEARCH_TERM
+  direct    channel.SEARCH_TERM-bar
+  indirect  channel.foo-SEARCH_TERM-bar (or match other columns)
+
+CONFIGURATION
+\`nps\` can be configured with environment variables. You can set these in
+the configuration file of your shell, e.g. .bashrc/.zshrc
+
+NIX_PACKAGE_SEARCH_FOLDER
+  In which folder is the cache located?
+  value: path
+  default: \"${HOME}/.nix-package-search\"
+
+NIX_PACKAGE_SEARCH_CACHE_FILE
+  Name of the cache file
+  value: filename
+  default: \"nps.cache\"
+
+NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION
+  Show the PACKAGE_VERSION column
+  value: true | false
+  default: \"true\"
+
+NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION
+  Show the PACKAGE_DESCRIPTION column
+  value: true | false
+  default: \"true\"
+
+NIX_PACKAGE_SEARCH_EXACT_COLOR
+  Color of EXACT matches, match channel.PACKAGE_NAME
+  value:
+    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+  default: \"01;35\"
+
+NIX_PACKAGE_SEARCH_DIRECT_COLOR
+  Color of DIRECT matches, match channel.PACKAGE_NAME-bar
+  value:
+    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+  default: \"01;34\"
+
+NIX_PACKAGE_SEARCH_INDIRECT_COLOR
+  Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
+  value:
+    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+  default: \"01;32\"
+
+NIX_PACKAGE_SEARCH_COLOR_MODE
+  \`grep\` color mode, show search matches in color
+  value:
+    never   Never show color
+    always  Always show color
+    auto    Only show color if stdout is in terminal, suppress if e.g. piped
+  default: auto
+
+NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
+  Separate matches with a newline?
+  value: true | false
+  default: \"true\""
 
 # Exit script on errors.
 set -o errexit
 
-# The return value of a pipeline is the value of the last
-# (rightmost) command to exit with a non-zero status.
+# The return value of a pipeline is the value of the last (rightmost) command
+# to exit with a non-zero status. Together with `errexit` it means that an
+# error within a pipe will exit the script.
 set -o pipefail
 
 # Don't overwrite files with `>`.
@@ -41,115 +125,259 @@ SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
 SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
 
 # Color of EXACT matches, match channel.PACKAGE_NAME
-# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+# value:
+#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
 
-# Color of DIRECT matches, match channel.PACKAGE_NAME-other-stuff
-# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+# Color of DIRECT matches, match channel.PACKAGE_NAME-bar
+# value:
+#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
 
-# Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-other-stuff
-# value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+# Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
+# value:
+#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
 INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
 
 # `grep` color mode, show search matches in color
 # value:
-#        never   Never show color
-#        always  Always show color
-#        auto    Only show color if stdout is in terminal, suppress if e.g. piped
+#   never   Never show color
+#   always  Always show color
+#   auto    Only show color if stdout is in terminal, suppress if e.g. piped
 COLOR_MODE="${NIX_PACKAGE_SEARCH_COLOR_MODE:-auto}"
 
 # Separate matches with a newline?
 # value: true | false
 PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
 
-# Replace spaces in the description with this character for easier treatment of columns.
-# Here we use the \x01 ASCII control character. It's rare enough that it would not appear in package descriptions.
-# (fingers crossed)
+# Replace spaces in the description with this character for easier treatment
+# of columns. Here we use the \x01 ASCII control character. It's rare enough
+# that it would not appear in package descriptions (fingers crossed).
 # value: ASCII character, but don't touch this one
 SPACE_PLACEHOLDER="\x01"
 
+# Don't query by default.
+QUERY=false
+
+# Test if this version of `getopt` supports long options.
+# We can cheat our way around `errexit` by using `if`. To access the
+# actual exit status, we now need ${PIPESTATUS[0]}.
+if getopt --test > /dev/null; then
+    :
+fi
+if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+    echo
+    echo "Error: \`nps\` needs advanced \`getopt\` supporting long options."
+    exit 1
+fi
+
+LONGOPTS=color:,colour:,columns:,help,long-help,separator:,query:,version
+OPTIONS=c:C:hls:q:v
+
+# Pass arguments only via   -- "$@"   to separate them correctly.
+if getopt --options=$OPTIONS --longoptions=$LONGOPTS \
+           --name "$0" -- "$@" > /dev/null; then
+   PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS \
+           --name "$0" -- "$@")
+else
+    # If, for example, the return value is 1, then getopt has complained
+    # about wrong arguments to stdout
+    echo
+    echo "$HELP"
+    exit 2
+fi
+
+# read getopt’s output this way to handle the quoting right:
+eval set -- "$PARSED"
 
 # Display help and exit if no command line arguments are given
 if [ $# -eq 0 ]; then
-	echo "$HELP"
-	exit
+    echo "$HELP"
+    exit
 fi
 
-SCAN=false
-for ARGUMENT in "$@"
-do
-	if [ "$ARGUMENT" == "-h" ] || [ "$ARGUMENT" == "--help" ]; then
-		echo "$HELP"
-		exit
-	elif [ "$ARGUMENT" == "-s" ] || [ "$ARGUMENT" == "--scan" ]; then
-		SCAN=true
-	elif [ "$ARGUMENT" == "-c" ] || [ "$ARGUMENT" == "--color" ]; then
-		COLOR_MODE=always
-	elif [ "$ARGUMENT" == "-n" ] || [ "$ARGUMENT" == "--no-separator" ]; then
-		PRINT_SEPARATOR=false
-	else
-		STRING=$ARGUMENT
-	fi
+query() {
+    echo "Querying and caching packages..."
+    # First writing to a tmp file, so the cache is not destroyed
+    # if the querying is interrupted.
+    nix-env -qaP --description >| "/tmp/$CACHE_FILE"
+    mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
+    echo "Done"
+}
+
+version() {
+    echo "nps (Nix Package Search) version $VERSION - (C) 2022 Ole Mussmann"
+    echo "Released under the MIT license."
+    exit 0
+}
+
+while true; do
+    case "$1" in
+        -c|--color|--colour)
+            # Remove possible leading '=' sign in option.
+            COLOR_MODE="${2#=}"
+            case "$COLOR_MODE" in
+                none|always|auto)
+                    :
+                    ;;
+                *)
+                    echo "Error: invalid color mode option $COLOR_MODE."
+                    echo
+                    echo "$HELP"
+                    exit 1
+                esac
+            shift 2
+            ;;
+        -C|--columns)
+            # Remove possible leading '=' sign in option.
+            COLUMNS="${2#=}"
+            shift 2
+            case "$COLUMNS" in
+                all)
+                    SHOW_PACKAGE_VERSION="true"
+                    SHOW_PACKAGE_DESCRIPTION="true"
+                    ;;
+                version)
+                    SHOW_PACKAGE_VERSION="true"
+                    SHOW_PACKAGE_DESCRIPTION="false"
+                    ;;
+                description)
+                    SHOW_PACKAGE_VERSION="false"
+                    SHOW_PACKAGE_DESCRIPTION="true"
+                    ;;
+                none)
+                    SHOW_PACKAGE_VERSION="false"
+                    SHOW_PACKAGE_DESCRIPTION="false"
+                    ;;
+                *)
+                    echo "Error: invalid column option $COLUMNS."
+                    echo
+                    echo "$HELP"
+                    exit 1
+            esac
+            ;;
+        -h|--help)
+            echo "$HELP"
+            exit 0
+            ;;
+        -l|--long-help)
+            echo "$HELP"
+            echo "$LONG_HELP"
+            exit 0
+            ;;
+        -s|--separator)
+            # Remove possible leading '=' sign in option.
+            PRINT_SEPARATOR="${2#=}"
+            shift 2
+            case "$PRINT_SEPARATOR" in
+               true|false)
+                   :
+                   ;;
+               *)
+                   echo "Error: invalid separator option $PRINT_SEPARATOR."
+                   exit 1
+            esac
+            ;;
+        -q|--query)
+            # Remove possible leading '=' sign in option.
+            QUERY="${2#=}"
+            shift 2
+            if ! [ "$QUERY" == "true" ] || [ "$QUERY" == "false" ]; then
+                echo "Error: invalid query option $QUERY."
+                exit 1
+            fi
+            ;;
+        -v|--version)
+            version
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Programming error"
+            exit 3
+            ;;
+    esac
 done
+
+# Handle non-option arguments.
+if [[ $# -ne 1 ]]; then
+    echo "$0: A single search term is required."
+    echo
+    echo "$HELP"
+    exit 4
+else
+    SEARCH_TERM=$1
+fi
 
 # Create cache folder, if not exists
 mkdir -p "$SEARCH_FOLDER"
 
-scan() {
-	echo "Caching packages..."
-	# First writing to a tmp file, so the cache is not destroyed if scanning is interrupted
-	nix-env -qaP --description >| "/tmp/$CACHE_FILE"
-	mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
-	echo "Done caching"
-}
+# Query packages and store them in the cache file if requested,
+# or if the cache file does not exist yet.
+if [ "$QUERY" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
+    query;
+fi
 
-# Query packages and store them in the cache file if requested, or the cache file does not exist yet.
-if [ "$SCAN" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then scan; fi
+VERSION_FILTER=
+if [ "$SHOW_PACKAGE_VERSION" == "true" ]; then
+    VERSION_FILTER="\"\t\" \$2 "
+fi
 
-if [ "$SHOW_PACKAGE_VERSION" == "true" ]; then VERSION_FILTER="\"\t\" \$2 "; else VERSION_FILTER= ; fi
-if [ "$SHOW_PACKAGE_DESCRIPTION" == "true" ]; then DESCRIPTION_FILTER="\"\t\" \$3"; else DESCRIPTION_FILTER= ; fi
+DESCRIPTION_FILTER=
+if [ "$SHOW_PACKAGE_DESCRIPTION" == "true" ]; then
+    DESCRIPTION_FILTER="\"\t\" \$3"
+fi
+
 AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
 
-# If we have _any_ matches in the cache...
-if [ "$STRING" ]; then
-	MATCHES=$(grep "$STRING" "$SEARCH_FOLDER/$CACHE_FILE" |  # Find any matches in the cache file.
-		sed "s/  */$SPACE_PLACEHOLDER/3g" |              # Replace spaces in the description column (3rd).
-		awk "$AWK_FILTER_STRING" |                       # Choose column to display.
-		column -t)                                       # Align columns with minimum amount of spaces in between.
+# grep    Find any matches in the cache file.
+# sed     Replace spaces in the description column (3rd) with a placeholder.
+# awk     Choose column to display.
+# column  Align columns with minimum amount of spaces in between.
+# sed     Put back spaces.
+MATCHES=$(grep "$SEARCH_TERM" "$SEARCH_FOLDER/$CACHE_FILE" |
+    sed "s/  */$SPACE_PLACEHOLDER/3g" |
+    awk "$AWK_FILTER_STRING" |
+    column -t | 
+    sed "s/$SPACE_PLACEHOLDER/ /g")
 
-	# Separate matches
-	EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING ")
-	DIRECT=$(echo "$MATCHES" | grep "^[^\.]*\.$STRING" | grep -v "^[^\.]*\.$STRING ")
-	INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$STRING")
+# Separate matches
+# Search for foo.SEARCH_TERM ending with an end-of-line char or whitespace.
+# '|| true' prevents script exit if no matches are found.
+EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$SEARCH_TERM\($\|\s\)" || true)
 
-	if [ "$EXACT" ]; then
-		# sed  Replace the placeholder by spaces again.
-		# grep Highlight EXACT matches in their own color.
-		echo "$EXACT" |
-			sed "s/$SPACE_PLACEHOLDER/ /g" |
-			GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$STRING"
-	fi
-	if [ "$DIRECT" ]; then
-		# Print separator if requested and needed
-		if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+# Search for foo.SEARCH_TERM-bar, but exclude the EXACT match.
+DIRECT=$(echo "$MATCHES" | grep "^[^\.]*\.$SEARCH_TERM" |
+         grep -v "^[^\.]*\.$SEARCH_TERM\($\|\s\)" || true)
 
-		# sed  Replace the placeholder by spaces again.
-		# grep Highlight DIRECT matches in their own color, but don't throw away lines without match
-		#      through the (escaped) "and" operator `|`.
-		echo "$DIRECT" |
-			sed "s/$SPACE_PLACEHOLDER/ /g" |
-			GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING\|"
-	fi
-	if [ "$INDIRECT" ]; then
-		# Print separator if requested and needed
-		if { [ "$EXACT" ] || [ "$DIRECT" ]; } && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+# All the rest, excluding the previous matches.
+INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$SEARCH_TERM" || true)
 
-		# sed  Replace the placeholder by spaces again.
-		# grep Highlight DIRECT matches in their own color, but don't throw away lines without match
-		#      through the (escaped) "and" operator `|`.
-		echo "$INDIRECT" |
-			sed "s/$SPACE_PLACEHOLDER/ /g" |
-			GREP_COLOR="$INDIRECT_COLOR" grep --color="$COLOR_MODE" "$STRING\|"
-	fi
+if [ "$EXACT" ]; then
+    # grep  Highlight EXACT matches in their own color.
+    echo "$EXACT" |
+        GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$SEARCH_TERM"
+fi
+if [ "$DIRECT" ]; then
+    # Print separator if requested and needed
+    if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+
+    # grep  Highlight DIRECT matches in their own color, but don't throw away
+    # lines without match. This works through the (escaped) "and" operator `|`.
+    echo "$DIRECT" |
+        GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$SEARCH_TERM\|"
+fi
+if [ "$INDIRECT" ]; then
+    # Print separator if requested and needed
+    if [[ ( "$EXACT"  ||  "$DIRECT" ) && "$PRINT_SEPARATOR" == "true" ]]; then
+        echo;
+    fi
+
+    # grep  Highlight DIRECT matches in their own color, but don't throw away
+    # lines without match. This works through the (escaped) "and" operator `|`.
+    echo "$INDIRECT" |
+        GREP_COLOR="$INDIRECT_COLOR" \
+        grep --color="$COLOR_MODE" "$SEARCH_TERM\|"
 fi

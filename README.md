@@ -19,45 +19,102 @@ Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find
 - Set up a cron job or a systemd timer for `nps -s` at regular intervals. Make sure to do so with your local user environment.
 
 ## Usage
-    Usage: nps [OPTION...] PACKAGE_NAME
-    Find PACKAGE_NAME in available nix packages and sort results by relevance.
-    
-      -c, --color          force color preservation
-      -h, --help           display this help message and exit
-      -n, --no-separator   don't separate matches with a newline
-      -s, --scan           query packages and cache results
+    Usage: nps [OPTION]... SEARCH_TERM
+    Find SEARCH_TERM in available nix packages and sort results by relevance.
+
+    List up to three columns, the latter two being optional:
+    channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
+
+    Mandatory arguments to long options are mandatory for short options too.
+
+      -c, --color=WHEN            highlight search matches in color,
+          --colour=WHEN             WHEN=
+                                    {always} always emit color codes
+                                     never   never emit color codes
+                                     auto    only emit color codes when stdout
+                                             is a terminal
+      -C, --columns=COLUMNS       choose columns to show,
+                                    COLUMNS=
+                                    {all}         show all columns
+                                     none         show only PACKAGE_NAME
+                                     version      also show PACKAGE_VERSION
+                                     description  also show PACKAGE_DESCRIPTION
+      -h, --help                  display a short help message and exit
+      -l, --long-help             display a long help message and exit
+      -s, --separator=true|false  separate match types with a newline {true}
+      -q, --query=true|false      query packages and cache results {false}
+      -v, --version               print `nps` version and exit"
+
+    The `nps --color=WHEN` option follows the `grep` color option, except that
+    here the WHEN option is mandatory. Be aware that color codes can trip up
+    subsequent commands like `grep`, if they occur within a match string.
+
+    Matches are sorted by type. Show 'exact' matches first, then 'direct' matches,
+    and finally 'indirect' matches.
+      exact     channel.SEARCH_TERM
+      direct    channel.SEARCH_TERM-bar
+      indirect  channel.foo-SEARCH_TERM-bar (or match other columns)
 
 - `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string, see image above.
 - The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP` and writing the output to a cache file. Subsequent queries are much faster.
-
-### Options
-
-- `-c` or `--color` forces color preservation when piping the output to other commands. `nps -c FOO | head` would still show colored output. But be aware that other commands like `grep` might trip over the color codes.
-- `-h` or `--help` displays the above usage message.
-- `-n` or `--no-separator` omits the new line separating search result types.
-- `-s` or `--scan` forces a fresh `nix-env -qaP` query, getting the latest packages. This might take a while and would be best automated with `cron` or another scheduling utility.
 
 ### Configuration
 
 Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file. Set color codes to `0` to remove highlighting and see [this excellent askubuntu post](https://askubuntu.com/questions/1042234/modifying-the-color-of-grep) for more color options.
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
-Folder where the cache is stored. Default: `${HOME}/.nix-package-search`
+In which folder is the cache located?
+value: path
+default: `"${HOME}/.nix-package-search"`
 
 #### `NIX_PACKAGE_SEARCH_CACHE_FILE`
-File name of the cache. Default: `nps.cache`
+Name of the cache file
+value: filename
+default: `"nps.cache"`
+
+#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION`
+Show the `PACKAGE_VERSION` column
+value: `"true"` | `"false"`
+default: `"true"`
+
+#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION`
+Show the `PACKAGE_DESCRIPTION` column
+value: `"true"` | `"false"`
+default: `"true"`
 
 #### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
-Color highlight of exact matches, matches `nixos.PACKAGE_NAME`. Default: `01;35` (purple)
+Color of EXACT matches, match `channel.PACKAGE_NAME`
+value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+default: `"01;35"` (purple)
 
 #### `NIX_PACKAGE_SEARCH_DIRECT_COLOR`
-Color highlight of direct matches, matches `nixos.PACKAGE_NAME-foo`. Default: `01;34` (blue)
+Color of DIRECT matches, match `channel.PACKAGE_NAME-bar`
+value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+default: `"01;34"` (blue)
 
 #### `NIX_PACKAGE_SEARCH_INDIRECT_COLOR`
-Color highlight of indirect matches, matches `nixos.foo-PACKAGE_NAME-bar`. Default: `01;32` (green)
+Color of INDIRECT matches, match `channel.foo-PACKAGE_NAME-bar`
+value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+default: `"01;32"` (green)
+
+#### `NIX_PACKAGE_SEARCH_COLOR_MODE`
+`grep` color mode, show search matches in color
+
+|value|effect|
+|--|--|
+| never | Never show color |
+| always |  Always show color |
+| auto | Only show color if stdout is in terminal, suppress if e.g. piped |
+
+default: auto
 
 #### `NIX_PACKAGE_SEARCH_PRINT_SEPARATOR`
-Whether to separate matching types by newlines. Default: `true`
+Separate matches with a newline?
+value: `"true"` | `"false"`
+default: `"true"`
+
+## Acknowledgements
+Bash argument parsing by [Robert Siemer](https://stackoverflow.com/a/29754866/996961).
 
 ## Contributing
 
