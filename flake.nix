@@ -1,5 +1,5 @@
 {
-  description = "A best script!";
+  description = "Nix Package Search";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
