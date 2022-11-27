@@ -12,6 +12,32 @@ Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find
 ![Color output of nps neovim](https://i.imgur.com/XpSo8qW.png "nps neovim")
 
 ## Installation
+### Try It Out Without Installing
+    nix run github:OleMussmann/Nix-Package-Search
+
+### Local Installation
+    nix profile install github:OleMussmann/Nix-Package-Search
+
+### Declarative Installation
+Add to your inputs:
+
+    nps.url = "github:OleMussmann/Nix-Package-Search";
+    nps.inputs.nixpkgs.follows = "nixpkgs";
+
+Pass `nps` to your outputs
+
+    outputs = { self, nixpkgs, nps, ... }@inputs:
+    {...}
+
+Add it to your `systemPackages`
+
+      environment.systemPackages = with pkgs; [
+          git
+          inputs.nps.defaultPackage.x86_64-linux  # replace x86_64-linux with your architecture
+          ...
+      ];
+
+### By Hand
 - Clone this repository.
 - Copy or symlink the `nps` script to a folder in your `PATH`, or include the `Nix-Package-Search` folder in your `PATH`.
 
