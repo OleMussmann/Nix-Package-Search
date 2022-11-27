@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="0.1"
+VERSION="0.2"
 
 HELP="Usage: nps [OPTION]... SEARCH_TERM
 Find SEARCH_TERM in available nix packages and sort results by relevance.
@@ -24,8 +24,8 @@ Mandatory arguments to long options are mandatory for short options too.
                                  description  also show PACKAGE_DESCRIPTION
   -h, --help                  display a short help message and exit
   -l, --long-help             display a long help message and exit
+  -r, --refresh               refresh package cache
   -s, --separator=true|false  separate match types with a newline {true}
-  -q, --query=true|false      query packages and cache results {false}
   -v, --version               print \`nps\` version and exit"
 
 LONG_HELP="
@@ -156,8 +156,8 @@ PRINT_SEPARATOR="${NIX_PACKAGE_SEARCH_PRINT_SEPARATOR:-true}"
 # value: ASCII character, but don't touch this one
 SPACE_PLACEHOLDER="\x01"
 
-# Don't query by default.
-QUERY=false
+# Don't refresh by default.
+REFRESH=false
 
 # Test if this version of `getopt` supports long options.
 # We can cheat our way around `errexit` by using `if`. To access the
@@ -171,8 +171,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-LONGOPTS=color:,colour:,columns:,help,long-help,separator:,query:,version
-OPTIONS=c:C:hls:q:v
+LONGOPTS=color:,colour:,columns:,help,long-help,refresh,separator:,version
+OPTIONS=c:C:hlrs:v
 
 # Pass arguments only via   -- "$@"   to separate them correctly.
 if getopt --options=$OPTIONS --longoptions=$LONGOPTS \
@@ -196,10 +196,10 @@ if [ $# -eq 0 ]; then
     exit
 fi
 
-query() {
+refresh() {
     echo "Querying and caching packages..."
     # First writing to a tmp file, so the cache is not destroyed
-    # if the querying is interrupted.
+    # if the cache refreshing is interrupted.
     nix-env -qaP --description >| "/tmp/$CACHE_FILE"
     mv "/tmp/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
     echo "Done"
@@ -265,6 +265,11 @@ while true; do
             echo "$LONG_HELP"
             exit 0
             ;;
+        -r|--refresh)
+            # Remove possible leading '=' sign in option.
+            REFRESH="true"
+            shift
+            ;;
         -s|--separator)
             # Remove possible leading '=' sign in option.
             PRINT_SEPARATOR="${2#=}"
@@ -277,15 +282,6 @@ while true; do
                    echo "Error: invalid separator option $PRINT_SEPARATOR."
                    exit 1
             esac
-            ;;
-        -q|--query)
-            # Remove possible leading '=' sign in option.
-            QUERY="${2#=}"
-            shift 2
-            if ! [ "$QUERY" == "true" ] || [ "$QUERY" == "false" ]; then
-                echo "Error: invalid query option $QUERY."
-                exit 1
-            fi
             ;;
         -v|--version)
             version
@@ -303,6 +299,13 @@ done
 
 # Handle non-option arguments.
 if [[ $# -ne 1 ]]; then
+
+    # Still run refresh, even if there is no search term.
+    if [[ "$REFRESH" == "true" ]]; then
+        refresh;
+        exit 0
+    fi
+
     echo "$0: A single search term is required."
     echo
     echo "$HELP"
@@ -316,8 +319,8 @@ mkdir -p "$SEARCH_FOLDER"
 
 # Query packages and store them in the cache file if requested,
 # or if the cache file does not exist yet.
-if [ "$QUERY" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
-    query;
+if [ "$REFRESH" == "true" ] || ! [ -f "$SEARCH_FOLDER/$CACHE_FILE" ]; then
+    refresh;
 fi
 
 VERSION_FILTER=

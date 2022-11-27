@@ -42,7 +42,7 @@ Add it to your `systemPackages`
 - Copy or symlink the `nps` script to a folder in your `PATH`, or include the `Nix-Package-Search` folder in your `PATH`.
 
 ## Automate package scanning (optional)
-- Set up a cron job or a systemd timer for `nps -s` at regular intervals. Make sure to do so with your local user environment.
+- Set up a cron job or a systemd timer for `nps -r` at regular intervals. Make sure to do so with your local user environment.
 
 ## Usage
     Usage: nps [OPTION]... SEARCH_TERM
