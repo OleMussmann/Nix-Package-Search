@@ -67,8 +67,8 @@ Add it to your `systemPackages`
                                      description  also show PACKAGE_DESCRIPTION
       -h, --help                  display a short help message and exit
       -l, --long-help             display a long help message and exit
+      -r, --refresh               refresh package cache
       -s, --separator=true|false  separate match types with a newline {true}
-      -q, --query=true|false      query packages and cache results {false}
       -v, --version               print `nps` version and exit"
 
     The `nps --color=WHEN` option follows the `grep` color option, except that
