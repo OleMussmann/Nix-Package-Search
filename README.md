@@ -90,37 +90,51 @@ Settings are configured via environment variables. Override them when calling `n
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
 In which folder is the cache located?
+
 value: path
+
 default: `"${HOME}/.nix-package-search"`
 
 #### `NIX_PACKAGE_SEARCH_CACHE_FILE`
 Name of the cache file
+
 value: filename
+
 default: `"nps.cache"`
 
 #### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION`
 Show the `PACKAGE_VERSION` column
+
 value: `"true"` | `"false"`
+
 default: `"true"`
 
 #### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION`
 Show the `PACKAGE_DESCRIPTION` column
+
 value: `"true"` | `"false"`
+
 default: `"true"`
 
 #### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
 Color of EXACT matches, match `channel.PACKAGE_NAME`
+
 value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+
 default: `"01;35"` (purple)
 
 #### `NIX_PACKAGE_SEARCH_DIRECT_COLOR`
 Color of DIRECT matches, match `channel.PACKAGE_NAME-bar`
+
 value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+
 default: `"01;34"` (blue)
 
 #### `NIX_PACKAGE_SEARCH_INDIRECT_COLOR`
 Color of INDIRECT matches, match `channel.foo-PACKAGE_NAME-bar`
+
 value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+
 default: `"01;32"` (green)
 
 #### `NIX_PACKAGE_SEARCH_COLOR_MODE`
@@ -132,11 +146,13 @@ default: `"01;32"` (green)
 | always |  Always show color |
 | auto | Only show color if stdout is in terminal, suppress if e.g. piped |
 
-default: auto
+default: `"auto"`
 
 #### `NIX_PACKAGE_SEARCH_PRINT_SEPARATOR`
 Separate matches with a newline?
+
 value: `"true"` | `"false"`
+
 default: `"true"`
 
 ## Acknowledgements
