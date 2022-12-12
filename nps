@@ -66,16 +66,19 @@ NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION
 NIX_PACKAGE_SEARCH_EXACT_COLOR
   Color of EXACT matches, match channel.PACKAGE_NAME
   value: black, blue, green, red, cyan, magenta, yellow, white
+    or true colors, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
   default: \"magenta\"
 
 NIX_PACKAGE_SEARCH_DIRECT_COLOR
   Color of DIRECT matches, match channel.PACKAGE_NAME-bar
   value: black, blue, green, red, cyan, magenta, yellow, white
+    for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
   default: \"blue\"
 
 NIX_PACKAGE_SEARCH_INDIRECT_COLOR
   Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
   value: black, blue, green, red, cyan, magenta, yellow, white
+    for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
   default: \"green\"
 
 NIX_PACKAGE_SEARCH_COLOR_MODE
@@ -122,15 +125,18 @@ SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
 SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
 
 # Color of EXACT matches, match channel.PACKAGE_NAME
-# value: black, blue, green, red, cyan, magenta, yellow, white
+# value: black, blue, green, red, cyan, magenta, yellow, white,
+#    or true colors, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-magenta}"
 
 # Color of DIRECT matches, match channel.PACKAGE_NAME-bar
-# value: black, blue, green, red, cyan, magenta, yellow, white
+# value: black, blue, green, red, cyan, magenta, yellow, white,
+#    or true colors, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-blue}"
 
 # Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
-# value: black, blue, green, red, cyan, magenta, yellow, white
+# value: black, blue, green, red, cyan, magenta, yellow, white,
+#    or true colors, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-green}"
 
 # `grep` color mode, show search matches in color

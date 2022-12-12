@@ -86,7 +86,7 @@ Add it to your `systemPackages`
 
 ### Configuration
 
-Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file. Set color codes to `0` to remove highlighting and see [this excellent askubuntu post](https://askubuntu.com/questions/1042234/modifying-the-color-of-grep) for more color options.
+Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file.
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
 In which folder is the cache located?
@@ -117,25 +117,25 @@ value: `"true"` | `"false"`
 default: `"true"`
 
 #### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
-Color of EXACT matches, match `channel.PACKAGE_NAME`
+Color of EXACT matches `channel.MATCH`
 
-value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
-default: `"01;35"` (purple)
+default: `"purple"`
 
 #### `NIX_PACKAGE_SEARCH_DIRECT_COLOR`
-Color of DIRECT matches, match `channel.PACKAGE_NAME-bar`
+Color of DIRECT matches `channel.MATCH-bar`
 
-value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
-default: `"01;34"` (blue)
+default: `"blue"`
 
 #### `NIX_PACKAGE_SEARCH_INDIRECT_COLOR`
-Color of INDIRECT matches, match `channel.foo-PACKAGE_NAME-bar`
+Color of INDIRECT matches `channel.foo-MATCH-bar` `channel.foo     description MATCH more description`
 
-value: see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
+value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
-default: `"01;32"` (green)
+default: `"green"`
 
 #### `NIX_PACKAGE_SEARCH_COLOR_MODE`
 `grep` color mode, show search matches in color
