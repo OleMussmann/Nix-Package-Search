@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="0.2"
+VERSION="0.3"
 
 HELP="Usage: nps [OPTION]... SEARCH_TERM
 Find SEARCH_TERM in available nix packages and sort results by relevance.
