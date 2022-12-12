@@ -8,7 +8,7 @@
       let
         pkgs = import nixpkgs { inherit system; };
         my-name = "nps";
-        my-buildInputs = with pkgs; [ getopt ];
+        my-buildInputs = with pkgs; [ getopt ripgrep ];
         nps = (pkgs.writeScriptBin my-name (builtins.readFile ./nps)).overrideAttrs(old: {
           buildCommand = "${old.buildCommand}\n patchShebangs $out";
         });

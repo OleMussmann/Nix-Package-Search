@@ -65,21 +65,18 @@ NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION
 
 NIX_PACKAGE_SEARCH_EXACT_COLOR
   Color of EXACT matches, match channel.PACKAGE_NAME
-  value:
-    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-  default: \"01;35\"
+  value: black, blue, green, red, cyan, magenta, yellow, white
+  default: \"magenta\"
 
 NIX_PACKAGE_SEARCH_DIRECT_COLOR
   Color of DIRECT matches, match channel.PACKAGE_NAME-bar
-  value:
-    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-  default: \"01;34\"
+  value: black, blue, green, red, cyan, magenta, yellow, white
+  default: \"blue\"
 
 NIX_PACKAGE_SEARCH_INDIRECT_COLOR
   Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
-  value:
-    see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-  default: \"01;32\"
+  value: black, blue, green, red, cyan, magenta, yellow, white
+  default: \"green\"
 
 NIX_PACKAGE_SEARCH_COLOR_MODE
   \`grep\` color mode, show search matches in color
@@ -125,19 +122,16 @@ SHOW_PACKAGE_VERSION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION:-true}"
 SHOW_PACKAGE_DESCRIPTION="${NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION:-true}"
 
 # Color of EXACT matches, match channel.PACKAGE_NAME
-# value:
-#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-01;35}"
+# value: black, blue, green, red, cyan, magenta, yellow, white
+EXACT_COLOR="${NIX_PACKAGE_SEARCH_EXACT_COLOR:-magenta}"
 
 # Color of DIRECT matches, match channel.PACKAGE_NAME-bar
-# value:
-#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-01;34}"
+# value: black, blue, green, red, cyan, magenta, yellow, white
+DIRECT_COLOR="${NIX_PACKAGE_SEARCH_DIRECT_COLOR:-blue}"
 
 # Color of INDIRECT matches, match channel.foo-PACKAGE_NAME-bar
-# value:
-#   see https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-01;32}"
+# value: black, blue, green, red, cyan, magenta, yellow, white
+INDIRECT_COLOR="${NIX_PACKAGE_SEARCH_INDIRECT_COLOR:-green}"
 
 # `grep` color mode, show search matches in color
 # value:
@@ -335,12 +329,12 @@ fi
 
 AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
 
-# grep    Find any matches in the cache file.
+# rg      Find any matches in the cache file.
 # sed     Replace spaces in the description column (3rd) with a placeholder.
 # awk     Choose column to display.
 # column  Align columns with minimum amount of spaces in between.
 # sed     Put back spaces.
-MATCHES=$(grep "$SEARCH_TERM" "$SEARCH_FOLDER/$CACHE_FILE" |
+MATCHES=$(rg -N "$SEARCH_TERM" "$SEARCH_FOLDER/$CACHE_FILE" |
     sed "s/  */$SPACE_PLACEHOLDER/3g" |
     awk "$AWK_FILTER_STRING" |
     column -t | 
@@ -349,28 +343,28 @@ MATCHES=$(grep "$SEARCH_TERM" "$SEARCH_FOLDER/$CACHE_FILE" |
 # Separate matches
 # Search for foo.SEARCH_TERM ending with an end-of-line char or whitespace.
 # '|| true' prevents script exit if no matches are found.
-EXACT=$(echo "$MATCHES" | grep "^[^\.]*\.$SEARCH_TERM\($\|\s\)" || true)
+EXACT=$(echo "$MATCHES" | rg "^[^.]*.$SEARCH_TERM($|\s)" || true)
 
 # Search for foo.SEARCH_TERM-bar, but exclude the EXACT match.
-DIRECT=$(echo "$MATCHES" | grep "^[^\.]*\.$SEARCH_TERM" |
-         grep -v "^[^\.]*\.$SEARCH_TERM\($\|\s\)" || true)
+DIRECT=$(echo "$MATCHES" | rg "^[^\.]*\.$SEARCH_TERM" |
+         rg -v "^[^.]*.$SEARCH_TERM($|\s)" || true)
 
 # All the rest, excluding the previous matches.
-INDIRECT=$(echo "$MATCHES" | grep -v "^[^\.]*\.$SEARCH_TERM" || true)
+INDIRECT=$(echo "$MATCHES" | rg -v "^[^.]*.$SEARCH_TERM" || true)
 
 if [ "$EXACT" ]; then
-    # grep  Highlight EXACT matches in their own color.
+    # rg  Highlight EXACT matches in their own color.
     echo "$EXACT" |
-        GREP_COLOR="$EXACT_COLOR" grep --color="$COLOR_MODE" "$SEARCH_TERM"
+        rg --colors="match:fg:$EXACT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM"
 fi
 if [ "$DIRECT" ]; then
     # Print separator if requested and needed
     if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 
-    # grep  Highlight DIRECT matches in their own color, but don't throw away
-    # lines without match. This works through the (escaped) "and" operator `|`.
+    # rg  Highlight DIRECT matches in their own color, but don't throw away
+    # lines without match. This works through the "and" operator `|`.
     echo "$DIRECT" |
-        GREP_COLOR="$DIRECT_COLOR" grep --color="$COLOR_MODE" "$SEARCH_TERM\|"
+        rg --colors="match:fg:$DIRECT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM|"
 fi
 if [ "$INDIRECT" ]; then
     # Print separator if requested and needed
@@ -378,9 +372,8 @@ if [ "$INDIRECT" ]; then
         echo;
     fi
 
-    # grep  Highlight DIRECT matches in their own color, but don't throw away
-    # lines without match. This works through the (escaped) "and" operator `|`.
+    # rg  Highlight INDIRECT matches in their own color, but don't throw away
+    # lines without match. This works through the "and" operator `|`.
     echo "$INDIRECT" |
-        GREP_COLOR="$INDIRECT_COLOR" \
-        grep --color="$COLOR_MODE" "$SEARCH_TERM\|"
+        rg --colors="match:fg:$INDIRECT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM|"
 fi
