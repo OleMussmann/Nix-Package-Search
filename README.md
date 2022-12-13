@@ -18,28 +18,24 @@ Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find
 ### Local Installation
     nix profile install github:OleMussmann/Nix-Package-Search
 
-### Declarative Installation
+### Declarative Installation (preferred)
 Add to your inputs:
 
     nps.url = "github:OleMussmann/Nix-Package-Search";
     nps.inputs.nixpkgs.follows = "nixpkgs";
 
-Pass `nps` to your outputs
-
-    outputs = { self, nixpkgs, nps, ... }@inputs:
-    {...}
-
-Add it to your `systemPackages`
+And add nps it to your `systemPackages`:
 
       environment.systemPackages = with pkgs; [
           git
-          inputs.nps.defaultPackage.x86_64-linux  # replace x86_64-linux with your architecture
+          inputs.nps
           ...
       ];
 
 ### By Hand
 - Clone this repository.
 - Copy or symlink the `nps` script to a folder in your `PATH`, or include the `Nix-Package-Search` folder in your `PATH`.
+- Dependencies: `ripgrep` and GNU `getopt`
 
 ## Automate package scanning (optional)
 - Set up a cron job or a systemd timer for `nps -r` at regular intervals. Make sure to do so with your local user environment.
