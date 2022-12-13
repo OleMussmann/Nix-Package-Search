@@ -20,6 +20,9 @@
           buildInputs = [ pkgs.makeWrapper ];
           postBuild = "wrapProgram $out/bin/${my-name} --prefix PATH : $out/bin";
         };
-      }
+	overlay = {
+	  nps = nps.defaultPackage.${system};
+	};
+      };
     );
 }
