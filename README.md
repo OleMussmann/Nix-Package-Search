@@ -7,7 +7,7 @@ Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find
 - direct hits, packages that _start with the search string_
 - indirect hits, packages that _contain the search string_
 
-... in configurable individual colors, optionally separated by a newline. Have a look, this query took less than 0.1s:
+... in configurable individual colors, optionally separated by a newline. Have a look:
 
 ![Color output of nps neovim](https://i.imgur.com/XpSo8qW.png "nps neovim")
 
