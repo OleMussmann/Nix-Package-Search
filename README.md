@@ -15,22 +15,55 @@ Searching for installable packages in NixOS can be painful. `nps` to the rescue!
 ### Try It Out Without Installing
     nix run github:OleMussmann/Nix-Package-Search
 
-### Local Installation
-    nix profile install github:OleMussmann/Nix-Package-Search
+### "Installing" the Cheater Way
+Add `nps = "nix run github:OleMussmann/Nix-Package-Search -- "` to your shell aliases. Don't forget the trailing double-dash. The program might be garbage collected every once in a while and will be automatically downloaded when needed.
 
-### Declarative Installation (preferred)
-Add to your inputs:
+    programs.bash.shellAliases = {  # Replace `bash` with your shell name, if necessary.
+      nps = "nix run github:OleMussmann/Nix-Package-Search -- "
+    };
 
-    nps.url = "github:OleMussmann/Nix-Package-Search";
-    nps.inputs.nixpkgs.follows = "nixpkgs";
+### Declarative Installation
+> :warning: The way of installing third-party flakes is highly dependent on your personal configuration. As far as I know there is no standardized, canonical way to do this. Instead, here is a generic approach via overlays. You will need to adapt it to your config files.
 
-And add nps it to your `systemPackages`:
+Add `nps` to your inputs:
+
+    inputs = {
+      nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+
+      nps.url = "github:OleMussmann/Nix-Package-Search";
+      nps.inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+Add an overlay to your outputs:
+
+    outputs = { self, nixpkgs, ... }@inputs:
+    let
+      overlays-third-party = final: prev: {
+        nps = inputs.nps.defaultPackage.${prev.system};
+        <other third party flakes you have>
+      };
+    in {
+      nixosConfigurations."<hostname>" = nixpkgs.lib.nixosSystem {
+        system = "<your_system_architecture>";
+        modules = [
+          ({ config, pkgs, ... }: { nixpkgs.overlays = [ overlays-third-party ]; })
+          ./configuration.nix
+        ];
+      };
+    };
+
+Finally, add `nps` to your `systemPackages` in `configuration.nix`:
 
       environment.systemPackages = with pkgs; [
           git
-          inputs.nps
+          nps
           ...
       ];
+
+### Local Installation
+Directly installing in your `nix profile` is generally discouraged, since it is not declarative.
+
+    nix profile install github:OleMussmann/Nix-Package-Search
 
 ### By Hand
 - Clone this repository.
