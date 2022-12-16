@@ -1,7 +1,7 @@
 # Nix-Package-Search
 Cache the nix package list, query and sort by relevance.
 
-Searching for installable packages in NixOS is a pain. `nps` to the rescue! Find packages at lightning speed and sort the result by relevance, splitting by ...
+Searching for installable packages in NixOS can be painful. `nps` to the rescue! Find packages at lightning speed and sort the result by relevance, split by ...
 
 - exact hits, the package _matching your exact string_
 - direct hits, packages that _start with the search string_
