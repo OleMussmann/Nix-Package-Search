@@ -94,6 +94,7 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
                                      none         show only PACKAGE_NAME
                                      version      also show PACKAGE_VERSION
                                      description  also show PACKAGE_DESCRIPTION
+      -f, --flip=true|false       flip the order of sorting {false}
       -h, --help                  display a short help message and exit
       -l, --long-help             display a long help message and exit
       -r, --refresh               refresh package cache
@@ -116,6 +117,13 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
 ### Configuration
 
 Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file.
+
+#### `NIX_PACKAGE_SEARCH_FLIP`
+Flip the order of matches? By default most relevant matches appear first. Flipping the order makes them appear last and is thus easier to read with long output.
+
+value: `"true"` | `"false"`
+
+default: `"false"`
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
 In which folder is the cache located?
