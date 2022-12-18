@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="0.0.1"
+VERSION="0.1.0"
 
 HELP="Usage: nps [OPTION]... SEARCH_TERM
 Find SEARCH_TERM in available nix packages and sort results by relevance.
@@ -11,7 +11,7 @@ channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
 Mandatory arguments to long options are mandatory for short options too.
 
   -c, --color=WHEN            highlight search matches in color,
-      --colour=WHEN             WHEN= 
+      --colour=WHEN             WHEN=
                                 {always} always emit color codes
                                  never   never emit color codes
                                  auto    only emit color codes when stdout
@@ -22,6 +22,7 @@ Mandatory arguments to long options are mandatory for short options too.
                                  none         show only PACKAGE_NAME
                                  version      also show PACKAGE_VERSION
                                  description  also show PACKAGE_DESCRIPTION
+  -f, --flip=true|false       flip the order of sorting {false}
   -h, --help                  display a short help message and exit
   -l, --long-help             display a long help message and exit
   -r, --refresh               refresh package cache
@@ -42,6 +43,13 @@ and finally 'indirect' matches.
 CONFIGURATION
 \`nps\` can be configured with environment variables. You can set these in
 the configuration file of your shell, e.g. .bashrc/.zshrc
+
+NIX_PACKAGE_SEARCH_FLIP
+  Flip the order of matches? By default most relevant matches appear first.
+  Flipping the order makes them appear last and is thus easier to read with
+  long output.
+  value: true | false
+  default: \"false\"
 
 NIX_PACKAGE_SEARCH_FOLDER
   In which folder is the cache located?
@@ -108,6 +116,10 @@ set -o noclobber
 # Fail if trying to use unbound variables.
 set -o nounset
 
+# Flip the order of matches?
+# value: true | false
+FLIP="${NIX_PACKAGE_SEARCH_FLIP:-false}"
+
 # In which folder is the cache?
 # value: path
 SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
@@ -171,8 +183,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-LONGOPTS=color:,colour:,columns:,help,long-help,refresh,separator:,version
-OPTIONS=c:C:hlrs:v
+LONGOPTS=color:,colour:,columns:,flip:,help,long-help,refresh,separator:,version
+OPTIONS=c:C:f:hlrs:v
 
 # Pass arguments only via   -- "$@"   to separate them correctly.
 if getopt --options=$OPTIONS --longoptions=$LONGOPTS \
@@ -256,6 +268,19 @@ while true; do
                     exit 1
             esac
             ;;
+        -f|--flip)
+            # Remove possible leading '=' sign in option.
+            FLIP="${2#=}"
+            shift 2
+            case "$FLIP" in
+               true|false)
+                   :
+                   ;;
+               *)
+                   echo "Error: invalid flip option $FLIP."
+                   exit 1
+            esac
+            ;;
         -h|--help)
             echo "$HELP"
             exit 0
@@ -266,7 +291,6 @@ while true; do
             exit 0
             ;;
         -r|--refresh)
-            # Remove possible leading '=' sign in option.
             REFRESH="true"
             shift
             ;;
@@ -343,8 +367,14 @@ AWK_FILTER_STRING="{print \$1 $VERSION_FILTER $DESCRIPTION_FILTER}"
 MATCHES=$(rg -N "$SEARCH_TERM" "$SEARCH_FOLDER/$CACHE_FILE" |
     sed "s/  */$SPACE_PLACEHOLDER/3g" |
     awk "$AWK_FILTER_STRING" |
-    column -t | 
+    column -t |
     sed "s/$SPACE_PLACEHOLDER/ /g")
+
+# Reverse line order, if FLIP is "true".
+if [ "$FLIP" == "true" ]; then
+    echo "flip"
+    MATCHES="$(echo "$MATCHES" | tac)"
+fi
 
 # Separate matches
 # Search for foo.SEARCH_TERM ending with an end-of-line char or whitespace.
@@ -358,28 +388,66 @@ DIRECT=$(echo "$MATCHES" | rg "^[^\.]*\.$SEARCH_TERM" |
 # All the rest, excluding the previous matches.
 INDIRECT=$(echo "$MATCHES" | rg -v "^[^.]*.$SEARCH_TERM" || true)
 
-if [ "$EXACT" ]; then
-    # rg  Highlight EXACT matches in their own color.
-    echo "$EXACT" |
-        rg --colors="match:fg:$EXACT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM"
-fi
-if [ "$DIRECT" ]; then
-    # Print separator if requested and needed
-    if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
-
-    # rg  Highlight DIRECT matches in their own color, but don't throw away
-    # lines without match. This works through the "and" operator `|`.
-    echo "$DIRECT" |
-        rg --colors="match:fg:$DIRECT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM|"
-fi
-if [ "$INDIRECT" ]; then
-    # Print separator if requested and needed
-    if [[ ( "$EXACT"  ||  "$DIRECT" ) && "$PRINT_SEPARATOR" == "true" ]]; then
-        echo;
+if [ "$FLIP" == "true" ]; then
+    # Flipped ordering
+    if [ "$INDIRECT" ]; then
+        # rg  Highlight INDIRECT matches in their own color, but don't throw
+        # away lines without match. This works through the "and" operator `|`.
+      echo "$INDIRECT" |
+          rg --colors="match:fg:$INDIRECT_COLOR" --color="$COLOR_MODE" \
+          "$SEARCH_TERM|"
     fi
+    if [ "$DIRECT" ]; then
+        # Print separator if requested and needed
+        if [ "$INDIRECT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
 
-    # rg  Highlight INDIRECT matches in their own color, but don't throw away
-    # lines without match. This works through the "and" operator `|`.
-    echo "$INDIRECT" |
-        rg --colors="match:fg:$INDIRECT_COLOR" --color="$COLOR_MODE" "$SEARCH_TERM|"
+        # rg  Highlight DIRECT matches in their own color, but don't throw
+        # away lines without match. This works through the "and" operator `|`.
+        echo "$DIRECT" |
+            rg --colors="match:fg:$DIRECT_COLOR" --color="$COLOR_MODE" \
+            "$SEARCH_TERM|"
+    fi
+    if [ "$EXACT" ]; then
+        # Print separator if requested and needed
+        if [[ ( "$EXACT"  ||  "$DIRECT" ) && \
+        "$PRINT_SEPARATOR" == "true" ]]; then
+            echo;
+        fi
+
+        # rg  Highlight EXACT matches in their own color.
+        echo "$EXACT" |
+            rg --colors="match:fg:$EXACT_COLOR" --color="$COLOR_MODE" \
+            "$SEARCH_TERM"
+    fi
+else
+    # Normal ordering
+    if [ "$EXACT" ]; then
+        # rg  Highlight EXACT matches in their own color.
+        echo "$EXACT" |
+            rg --colors="match:fg:$EXACT_COLOR" --color="$COLOR_MODE" \
+            "$SEARCH_TERM"
+    fi
+    if [ "$DIRECT" ]; then
+        # Print separator if requested and needed
+        if [ "$EXACT" ] && [ "$PRINT_SEPARATOR" == "true" ]; then echo; fi
+
+        # rg  Highlight DIRECT matches in their own color, but don't throw
+        # away lines without match. This works through the "and" operator `|`.
+        echo "$DIRECT" |
+            rg --colors="match:fg:$DIRECT_COLOR" --color="$COLOR_MODE" \
+            "$SEARCH_TERM|"
+    fi
+    if [ "$INDIRECT" ]; then
+        # Print separator if requested and needed
+        if [[ ( "$EXACT"  ||  "$DIRECT" ) && "$PRINT_SEPARATOR" == "true" ]];
+            then
+            echo;
+        fi
+
+        # rg  Highlight INDIRECT matches in their own color, but don't throw
+        # away lines without match. This works through the "and" operator `|`.
+        echo "$INDIRECT" |
+            rg --colors="match:fg:$INDIRECT_COLOR" --color="$COLOR_MODE" \
+            "$SEARCH_TERM|"
+    fi
 fi
