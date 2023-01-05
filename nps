@@ -209,6 +209,9 @@ if [ $# -eq 0 ]; then
 fi
 
 refresh() {
+    # Create cache folder, if not exists
+    mkdir -p "$SEARCH_FOLDER"
+
     echo "Querying and caching packages..."
     # First writing to a tmp file, so the cache is not destroyed
     # if the cache refreshing is interrupted.
@@ -337,9 +340,6 @@ if [[ $# -ne 1 ]]; then
 else
     SEARCH_TERM=$1
 fi
-
-# Create cache folder, if not exists
-mkdir -p "$SEARCH_FOLDER"
 
 # Query packages and store them in the cache file if requested,
 # or if the cache file does not exist yet.
