@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optionally use nix registries as a source
 - Update documentation
 
+## [0.1.6] - 2023-01-08
+
+### Fixed
+
+- Use GNU versions of awk and sed
+
 ## [0.1.5] - 2022-12-20
 
 ### Fixed
@@ -56,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Versioning now adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
-[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.5...development
+[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.6...development
+[0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.6
 [0.1.5]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.5
 [0.1.4]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.4
 [0.1.3]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.3
