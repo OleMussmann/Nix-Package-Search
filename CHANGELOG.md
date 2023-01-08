@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- No changes yet
+- Optionally use nix registries as a source
+- Update documentation
 
 ## [0.1.5] - 2022-12-20
 
