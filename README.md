@@ -12,6 +12,8 @@ Searching for installable packages in NixOS can be painful. `nps` to the rescue!
 ![Color output of nps neovim](https://i.imgur.com/XpSo8qW.png "nps neovim")
 
 ## Installation
+The stable version is the default. To test new features, use `github:OleMussmann/Nix-Package-Search/development` instead. It has always the freshest, always the newest features, but could contain more bugs. Use at your own risk.
+
 ### Try It Out Without Installing
     nix run github:OleMussmann/Nix-Package-Search
 
@@ -71,35 +73,40 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
 - Dependencies: `ripgrep` and GNU `getopt`
 
 ## Automate package scanning (optional)
-- Set up a cron job or a systemd timer for `nps -r` at regular intervals. Make sure to do so with your local user environment.
+- Set up a cron job or a systemd timer for `nps -r` (or `nps -e true -r` for using the nix experimental features) at regular intervals. Make sure to do so with your local user environment.
 
 ## Usage
     Usage: nps [OPTION]... SEARCH_TERM
-    Find SEARCH_TERM in available nix packages and sort results by relevance.
+    Find SEARCH_TERM in nix channels packages and sort results by relevance.
 
     List up to three columns, the latter two being optional:
-    channel.PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
+    channel.PACKAGE_NAME  [VERSION]  [DESCRIPTION]
+    
+    Or, with nix experimental features, search the registry flakes instead.
+    PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- system flake
+    registry_name#PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- other flakes
 
     Mandatory arguments to long options are mandatory for short options too.
 
-      -c, --color=WHEN            highlight search matches in color,
-          --colour=WHEN             WHEN=
-                                    {always} always emit color codes
-                                     never   never emit color codes
-                                     auto    only emit color codes when stdout
-                                             is a terminal
-      -C, --columns=COLUMNS       choose columns to show,
-                                    COLUMNS=
-                                    {all}         show all columns
-                                     none         show only PACKAGE_NAME
-                                     version      also show PACKAGE_VERSION
-                                     description  also show PACKAGE_DESCRIPTION
-      -f, --flip=true|false       flip the order of sorting {false}
-      -h, --help                  display a short help message and exit
-      -l, --long-help             display a long help message and exit
-      -r, --refresh               refresh package cache
-      -s, --separator=true|false  separate match types with a newline {true}
-      -v, --version               print `nps` version and exit"
+      -c, --color=WHEN               highlight search matches in color,
+          --colour=WHEN                WHEN=
+                                       {always} always emit color codes
+                                        never   never emit color codes
+                                        auto    only emit color codes when stdout
+                                                is a terminal
+      -C, --columns=COLUMNS          choose columns to show,
+                                       COLUMNS=
+                                       {all}         show all columns
+                                        none         show only PACKAGE_NAME
+                                        version      also show PACKAGE_VERSION
+                                        description  also show PACKAGE_DESCRIPTION
+      -e, --experimental=true|false  use experimental nix search {false}
+      -f, --flip=true|false          flip the order of sorting {false}
+      -h, --help                     display a short help message and exit
+      -l, --long-help                display a long help message and exit
+      -r, --refresh                  refresh package cache
+      -s, --separator=true|false     separate match types with a newline {true}
+      -v, --version                  print \`nps\` version and exit"
 
     The `nps --color=WHEN` option follows the `grep` color option, except that
     here the WHEN option is mandatory. Be aware that color codes can trip up
@@ -107,16 +114,29 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
 
     Matches are sorted by type. Show 'exact' matches first, then 'direct' matches,
     and finally 'indirect' matches.
-      exact     channel.SEARCH_TERM
-      direct    channel.SEARCH_TERM-bar
-      indirect  channel.foo-SEARCH_TERM-bar (or match other columns)
+      exact     SEARCH_TERM
+                registry#SEARCH_TERM
+                channel.SEARCH_TERM
+      direct    SEARCH_TERM-bar
+                registry#SEARCH_TERM-bar
+                channel.SEARCH_TERM-bar
+      indirect  foo-SEARCH_TERM-bar (or match other columns)
+                registry#foo-SEARCH_TERM-bar (or match other columns)
+                channel.foo-SEARCH_TERM-bar (or match other columns)
 
 - `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string, see image above.
-- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP` and writing the output to a cache file. Subsequent queries are much faster.
+- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP` (or `nix search REGISTRY` for experimental mode) and writing the output to a cache file. Subsequent queries are much faster.
 
 ### Configuration
 
-Settings are configured via environment variables. Override them when calling `nps`, or in your `*rc` file.
+Settings are configured via environment variables. Override them when calling `nps`, or in the configuration file of your shell, e.g. `.bashrc` or `.zshrc`.
+
+#### `NIX_PACKAGE_SEARCH_EXPERIMENTAL`
+Use the experimental \"nix search\" command. It pulls information from the nix flake registries instead of nix channels. This is useful if no channels are in use, or channels are not updated regularly.
+
+value: `"true"` | `"false"`
+
+default: `"false"`
 
 #### `NIX_PACKAGE_SEARCH_FLIP`
 Flip the order of matches? By default most relevant matches appear first. Flipping the order makes them appear last and is thus easier to read with long output.
@@ -124,6 +144,27 @@ Flip the order of matches? By default most relevant matches appear first. Flippi
 value: `"true"` | `"false"`
 
 default: `"false"`
+
+#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION`
+Show the `VERSION` column.
+
+value: `"true"` | `"false"`
+
+default: `"true"`
+
+#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION`
+Show the `DESCRIPTION` column.
+
+value: `"true"` | `"false"`
+
+default: `"true"`
+
+#### `NIX_PACKAGE_SEARCH_PRINT_SEPARATOR`
+Separate matches with a newline?
+
+value: `"true"` | `"false"`
+
+default: `"true"`
 
 #### `NIX_PACKAGE_SEARCH_FOLDER`
 In which folder is the cache located?
@@ -133,42 +174,54 @@ value: path
 default: `"${HOME}/.nix-package-search"`
 
 #### `NIX_PACKAGE_SEARCH_CACHE_FILE`
-Name of the cache file
+Name of the cache file.
 
 value: filename
 
 default: `"nps.cache"`
 
-#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION`
-Show the `PACKAGE_VERSION` column
+#### `NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE`
+Name of the cache file.
 
-value: `"true"` | `"false"`
+value: filename
 
-default: `"true"`
+default: `"nps.experimental.cache"`
 
-#### `NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION`
-Show the `PACKAGE_DESCRIPTION` column
+#### `NIX_PACKAGE_SEARCH_EXPERIMENTAL_LOG_FILE`
+Name of the experimental log file. Used for errors in searching registries during caching.
 
-value: `"true"` | `"false"`
+value: filename
 
-default: `"true"`
+default: `"nps.experimental.log"`
 
 #### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
-Color of EXACT matches `channel.MATCH`
+Color of EXACT matches, e.g.
+
+    SEARCH_TERM
+    registry#SEARCH_TERM
+    channel.SEARCH_TERM
 
 value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
 default: `"purple"`
 
 #### `NIX_PACKAGE_SEARCH_DIRECT_COLOR`
-Color of DIRECT matches `channel.MATCH-bar`
+Color of DIRECT matches, e.g.
+
+    SEARCH_TERM-bar
+    registry#SEARCH_TERM-bar
+    channel.SEARCH_TERM-bar
 
 value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
 default: `"blue"`
 
 #### `NIX_PACKAGE_SEARCH_INDIRECT_COLOR`
-Color of INDIRECT matches `channel.foo-MATCH-bar` `channel.foo     description MATCH more description`
+Color of INDIRECT matches, e.g.
+
+    foo-SEARCH_TERM-bar (or match other columns)
+    registry#foo-SEARCH_TERM-bar (or match other columns)
+    channel.foo-SEARCH_TERM-bar (or match other columns)
 
 value: `"black"` `"blue"` `"green"` `"red"` `"cyan"` `"magenta"` `"yellow"` `"white"`<br>for advanced color options, see https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md#how-do-i-configure-ripgreps-colors
 
@@ -184,13 +237,6 @@ default: `"green"`
 | auto | Only show color if stdout is in terminal, suppress if e.g. piped |
 
 default: `"auto"`
-
-#### `NIX_PACKAGE_SEARCH_PRINT_SEPARATOR`
-Separate matches with a newline?
-
-value: `"true"` | `"false"`
-
-default: `"true"`
 
 ## Acknowledgements
 Bash argument parsing by [Robert Siemer](https://stackoverflow.com/a/29754866/996961).
