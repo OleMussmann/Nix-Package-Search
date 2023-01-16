@@ -24,8 +24,8 @@ Mandatory arguments to long options are mandatory for short options too.
                                    COLUMNS=
                                    {all}         show all columns
                                     none         show only PACKAGE_NAME
-                                    version      also show PACKAGE
-                                    description  also show PACKAGE
+                                    version      also show PACKAGE_VERSION
+                                    description  also show PACKAGE_DESCRIPTION
   -e, --experimental=true|false  use experimental nix search {false}
   -f, --flip=true|false          flip the order of sorting {false}
   -h, --help                     display a short help message and exit
@@ -262,7 +262,7 @@ filter_caches() {
     #      - FILTER_PACKAGE_NAME
     #        isolate package name, match
     #          "*[not a '.'].[not a '.'].PACKAGE_NAME\x1B\[0m"
-    #        and replace it with 
+    #        and replace it with
     #          "OPTIONAL_REGISTRY_NAME[no space]PACKAGE_NAME"
     #      - FILTER_SECOND_LINE
     #        remove formatting, delete
