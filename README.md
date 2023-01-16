@@ -173,27 +173,6 @@ value: path
 
 default: `"${HOME}/.nix-package-search"`
 
-#### `NIX_PACKAGE_SEARCH_CACHE_FILE`
-Name of the cache file.
-
-value: filename
-
-default: `"nps.cache"`
-
-#### `NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE`
-Name of the cache file.
-
-value: filename
-
-default: `"nps.experimental.cache"`
-
-#### `NIX_PACKAGE_SEARCH_EXPERIMENTAL_LOG_FILE`
-Name of the experimental log file. Used for errors in searching registries during caching.
-
-value: filename
-
-default: `"nps.experimental.log"`
-
 #### `NIX_PACKAGE_SEARCH_EXACT_COLOR`
 Color of EXACT matches, e.g.
 

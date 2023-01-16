@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update documentation
 
 ## [0.1.6] - 2023-01-08
+### Removed
+- Settings for file names
 
 ### Fixed
 

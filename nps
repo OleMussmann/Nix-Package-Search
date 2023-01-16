@@ -90,21 +90,6 @@ NIX_PACKAGE_SEARCH_FOLDER
   value: path
   default: \"${HOME}/.nix-package-search\"
 
-NIX_PACKAGE_SEARCH_CACHE_FILE
-  Name of the cache file.
-  value: filename
-  default: \"nps.cache\"
-
-NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE
-  Name of the cache file.
-  value: filename
-  default: \"nps.experimental.cache\"
-
-NIX_PACKAGE_SEARCH_EXPERIMENTAL_LOG_FILE
-  Name of the log file.
-  value: filename
-  default: \"nps.experimental.log\"
-
 NIX_PACKAGE_SEARCH_EXACT_COLOR
   Color of EXACT matches, match
     SEARCH_TERM
@@ -164,15 +149,15 @@ SEARCH_FOLDER="${NIX_PACKAGE_SEARCH_FOLDER:-"${HOME}/.nix-package-search"}"
 
 # Name of the cache file
 # value: filename
-CACHE_FILE="${NIX_PACKAGE_SEARCH_CACHE_FILE:-nps.cache}"
+CACHE_FILE="nps.cache"
 
 # Name of the experimental cache file
 # value: filename
-EXPERIMENTAL_CACHE_FILE="${NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE:-nps.experimental.cache}"
+EXPERIMENTAL_CACHE_FILE="nps.experimental.cache"
 
 # Name of the experimental log file
 # value: filename
-EXPERIMENTAL_LOG_FILE="${NIX_PACKAGE_SEARCH_EXPERIMENTAL_LOG_FILE:-nps.experimental.log}"
+EXPERIMENTAL_LOG_FILE="nps.caching.log"
 
 # Use the experimental \"nix search\" command
 # Useful if no channels are in use, or channels are not updated regularly
