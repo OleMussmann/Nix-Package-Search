@@ -82,9 +82,8 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
     List up to three columns, the latter two being optional:
     channel.PACKAGE_NAME  [VERSION]  [DESCRIPTION]
     
-    Or, with nix experimental features, search the registry flakes instead.
-    PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- system flake
-    registry_name#PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- other flakes
+    Or, with nix experimental features, search the system registry flake instead.
+    PACKAGE_NAME  [VERSION]  [DESCRIPTION]
 
     Mandatory arguments to long options are mandatory for short options too.
 
@@ -115,17 +114,14 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
     Matches are sorted by type. Show 'exact' matches first, then 'direct' matches,
     and finally 'indirect' matches.
       exact     SEARCH_TERM
-                registry#SEARCH_TERM
                 channel.SEARCH_TERM
       direct    SEARCH_TERM-bar
-                registry#SEARCH_TERM-bar
                 channel.SEARCH_TERM-bar
       indirect  foo-SEARCH_TERM-bar (or match other columns)
-                registry#foo-SEARCH_TERM-bar (or match other columns)
                 channel.foo-SEARCH_TERM-bar (or match other columns)
 
 - `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string, see image above.
-- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP` (or `nix search REGISTRY` for experimental mode) and writing the output to a cache file. Subsequent queries are much faster.
+- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP` (or `nix search SYSTEM_REGISTRY` for experimental mode) and writing the output to a cache file. Subsequent queries are much faster.
 
 ### Configuration
 

@@ -244,6 +244,27 @@ if [ $# -eq 0 ]; then
     exit
 fi
 
+invalid_option() {
+    OPTION_NAME=$1
+    SUPPLIED_OPTION_STRING=$2
+    VALID_OPTIONS=$3
+    echo "Error: invalid $OPTION_NAME \"$SUPPLIED_OPTION_STRING\"." \
+        "Must be $VALID_OPTIONS."
+    echo
+    echo "$HELP"
+    exit 1
+}
+
+CHANNEL_ERROR_TEXT="
+Channel error. Please use the experimental flag \`--experimental true\` to
+query registry flakes instead. See \`nps -l\` for extended help on how to set
+flags permanently."
+
+channel_error() {
+    echo "$CHANNEL_ERROR_TEXT"
+    exit 1
+}
+
 filter_caches() {
     REGISTRY_NAME="$1"
 
@@ -320,45 +341,16 @@ refresh() {
         SYSTEM_FLAKE="$(nix registry list | \
             grep "^system flake" | \
             sed -e 's/^system flake:\([^ ]*\) path.*/\1/')"
-        
-        # nix registry list  list all registries (URL shortcuts) present
-        #                      on the system
-        # grep               find lines containing "global flake" at the
-        #                      beginning
-        # sed                extract registry name
-        REGISTRY="$(nix registry list | \
-            grep "^global flake" | \
-            sed -e 's/^global flake:\([^ ]*\) .*/\1/')"
-        
-        echo "Fetching registries, this might take a while..."
-        echo "Heads-up: not all registry flakes contain searchable packages!"
-        for ENTRY in $REGISTRY; do
-            echo "Fetching $ENTRY ..."
-            if CACHE="$(nix search "$ENTRY" \
-		    2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"; then
-                echo "$CACHE" > /tmp/nps/raw_caches/"$ENTRY"
-                    
-            fi
-        done
-        
-        echo "Filter registry flakes..."
 
-        # Add filtered system flake
+        echo "Fetching system registry flake ..."
+        CACHE="$(nix search "$SYSTEM_FLAKE" \
+            2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+        echo "$CACHE" > "/tmp/nps/raw_caches/$SYSTEM_FLAKE"
+
+        echo "Filter registry flakes..."
         # Use _no_ registry name ("") for system flake
         filter_caches "" < "/tmp/nps/raw_caches/$SYSTEM_FLAKE" \
             > "/tmp/nps/$EXPERIMENTAL_CACHE_FILE"
-        
-        RAW_CACHES="$(ls /tmp/nps/raw_caches/)"
-        
-        # Add other filtered flakes
-        # prepended with "REGISTRY_NAME#"
-        for RAW_CACHE in $RAW_CACHES; do
-            if [[ ! "$RAW_CACHE" == "$SYSTEM_FLAKE" ]]; then
-                filter_caches "$RAW_CACHE#" \
-                    < "/tmp/nps/raw_caches/$RAW_CACHE" \
-                    >> "/tmp/nps/$EXPERIMENTAL_CACHE_FILE"
-            fi
-        done
 
         echo "Move cache to $SEARCH_FOLDER..."
         mv "/tmp/nps/$EXPERIMENTAL_CACHE_FILE" \
@@ -368,11 +360,23 @@ refresh() {
         echo "Querying and caching packages..."
         # First writing to a tmp file, so the cache is not destroyed
         # if the cache refreshing is interrupted.
-        nix-env -qaP --description >| "/tmp/nps/$CACHE_FILE"
+        if CACHE="$(nix-env -qaP --description)"; then
+            echo "$CACHE" >| "/tmp/nps/$CACHE_FILE"
+        else
+            # Raise channel error if nix-env -qaP fails.
+            channel_error
+        fi
 
-        echo "Move cache to $SEARCH_FOLDER..."
-        mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
-        echo "Done"
+        # Raise channel error if cache file is empty.
+        if [ -s "/tmp/nps/$CACHE_FILE" ]; then
+            # Cache file has content
+            echo "Move cache to $SEARCH_FOLDER..."
+            mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
+            echo "Done"
+        else
+            # Cache file is empty
+            channel_error
+        fi
     fi
 }
 
@@ -380,17 +384,6 @@ version() {
     echo "nps (Nix Package Search) version $VERSION - (C) 2022 Ole Mussmann"
     echo "Released under the MIT license."
     exit 0
-}
-
-invalid_option() {
-    OPTION_NAME=$1
-    SUPPLIED_OPTION_STRING=$2
-    VALID_OPTIONS=$3
-    echo "Error: invalid $OPTION_NAME \"$SUPPLIED_OPTION_STRING\"." \
-        "Must be $VALID_OPTIONS."
-    echo
-    echo "$HELP"
-    exit 1
 }
 
 while true; do

@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Optionally use nix registries as a source
+### New
+- Optionally use the nix system registry flake as a source
 - Update documentation
 
-## [0.1.6] - 2023-01-08
 ### Removed
 - Settings for file names
 
@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inconsistent use of empty lines separating matches
 - Duplicated package matches
 
+## [0.1.6] - 2023-01-08
+
+### Fixed
 - Use GNU versions of awk and sed
 
 ## [0.1.5] - 2022-12-20
