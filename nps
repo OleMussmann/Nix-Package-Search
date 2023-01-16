@@ -577,7 +577,7 @@ if [ "$EXPERIMENTAL" == "true" ]; then
              rg -v "^([^ ]*#)?$SEARCH_TERM($|\s)" || true)
 else
     # Search for foo.SEARCH_TERM-bar, but exclude the EXACT match.
-    DIRECT=$(echo "$MATCHES" | rg "^[^\.]*\.$SEARCH_TERM" |
+    DIRECT=$(echo "$MATCHES" | rg "^[^.]*.$SEARCH_TERM" |
              rg -v "^[^.]*.$SEARCH_TERM($|\s)" || true)
 fi
 
@@ -585,7 +585,7 @@ fi
 if [ "$EXPERIMENTAL" == "true" ]; then
     INDIRECT=$(echo "$MATCHES" | rg -v "^([^ ]*#)?$SEARCH_TERM" || true)
 else
-    INDIRECT=$(echo "$MATCHES" | rg -v "^$SEARCH_TERM" || true)
+    INDIRECT=$(echo "$MATCHES" | rg -v "^[^.]*.$SEARCH_TERM" || true)
 fi
 
 if [ "$FLIP" == "true" ]; then
@@ -609,7 +609,7 @@ if [ "$FLIP" == "true" ]; then
     fi
     if [ "$EXACT" ]; then
         # Print separator if requested and needed
-        if [[ ( "$EXACT"  ||  "$DIRECT" ) && \
+        if [[ ( "$INDIRECT"  ||  "$DIRECT" ) && \
         "$PRINT_SEPARATOR" == "true" ]]; then
             echo;
         fi

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings for file names
 
 ### Fixed
+- Inconsistent use of empty lines separating matches
+- Duplicated package matches
 
 - Use GNU versions of awk and sed
 
