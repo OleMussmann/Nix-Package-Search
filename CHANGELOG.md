@@ -19,43 +19,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.5] - 2022-12-20
 
 ### Fixed
-
 - Create cache directory when needed
 
 ## [0.1.4] - 2022-12-20
 
 ### Fixed
-
 - Print the correct version number
 
 ## [0.1.3] - 2022-12-20
 
 ### Fixed
-
 - Dependencies are now hidden and won't clash with existing packages anymore
 
 ## [0.1.2] - 2022-12-18
 
 ### Fixed
-
 - Remove debug print
 
 ## [0.1.1] - 2022-12-18
 
 ### Fixed
-
 - Document "flip" option in README.md
 
 ## [0.1.0] - 2022-12-18
 
 ### Added
-
 - "Flip" option: reverse result order for better visibility of the most relevant matches
 
 ## [0.0.1] - 2022-12-18
 
 ### Added
-
 - This changelog
 
 ### Changed
