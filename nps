@@ -356,6 +356,7 @@ refresh() {
         mv "/tmp/nps/$EXPERIMENTAL_CACHE_FILE" \
                 "$SEARCH_FOLDER/$EXPERIMENTAL_CACHE_FILE"
         echo "Done"
+	echo
     else
         echo "Querying and caching packages..."
         # First writing to a tmp file, so the cache is not destroyed
@@ -373,6 +374,7 @@ refresh() {
             echo "Move cache to $SEARCH_FOLDER..."
             mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
             echo "Done"
+	    echo
         else
             # Cache file is empty
             channel_error
