@@ -342,23 +342,23 @@ refresh() {
             grep "^system flake" | \
             sed -e 's/^system flake:\([^ ]*\) path.*/\1/')"
 
-        echo "Fetching system registry flake ..."
+        echo "Fetch packages from system registry flake..."
         CACHE="$(nix search "$SYSTEM_FLAKE" \
             2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
         echo "$CACHE" > "/tmp/nps/raw_caches/$SYSTEM_FLAKE"
 
-        echo "Filter registry flakes..."
+        echo "Filter registry flake"
         # Use _no_ registry name ("") for system flake
         filter_caches "" < "/tmp/nps/raw_caches/$SYSTEM_FLAKE" \
             > "/tmp/nps/$EXPERIMENTAL_CACHE_FILE"
 
-        echo "Move cache to $SEARCH_FOLDER..."
+        echo "Move cache to $SEARCH_FOLDER"
         mv "/tmp/nps/$EXPERIMENTAL_CACHE_FILE" \
                 "$SEARCH_FOLDER/$EXPERIMENTAL_CACHE_FILE"
         echo "Done"
 	echo
     else
-        echo "Querying and caching packages..."
+        echo "Fetch packages from channels..."
         # First writing to a tmp file, so the cache is not destroyed
         # if the cache refreshing is interrupted.
         if CACHE="$(nix-env -qaP --description)"; then
@@ -371,7 +371,7 @@ refresh() {
         # Raise channel error if cache file is empty.
         if [ -s "/tmp/nps/$CACHE_FILE" ]; then
             # Cache file has content
-            echo "Move cache to $SEARCH_FOLDER..."
+            echo "Move cache to $SEARCH_FOLDER"
             mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
             echo "Done"
 	    echo
