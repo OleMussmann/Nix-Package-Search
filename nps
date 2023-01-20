@@ -335,11 +335,11 @@ refresh() {
     if [ "$EXPERIMENTAL" == "true" ]; then
         # nix registry list  list all registries (URL shortcuts) present
         #                      on the system
-        # grep               find lines containing "system flake" at the
+        # rg                 find lines containing "system flake" at the
         #                      beginning
         # sed                extract registry name
         SYSTEM_FLAKE="$(nix registry list | \
-            grep "^system flake" | \
+            rg "^system flake" | \
             sed -e 's/^system flake:\([^ ]*\) path.*/\1/')"
 
         echo "Fetch packages from system registry flake..."
