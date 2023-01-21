@@ -82,7 +82,7 @@ Directly installing in your `nix profile` is generally discouraged, since it is 
     List up to three columns, the latter two being optional:
     channel.PACKAGE_NAME  [VERSION]  [DESCRIPTION]
     
-    Or, with nix experimental features, search the system registry flake instead.
+    Or, with nix experimental features, search the nixpkgs flake instead.
     PACKAGE_NAME  [VERSION]  [DESCRIPTION]
 
     Mandatory arguments to long options are mandatory for short options too.

@@ -8,9 +8,8 @@ Find SEARCH_TERM in available nix packages and sort results by relevance.
 List up to three columns, the latter two being optional:
 channel.PACKAGE_NAME  [VERSION]  [DESCRIPTION]
 
-Or, with nix experimental features, search the registry flakes instead.
-PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- system flake
-registry_name#PACKAGE_NAME  [VERSION]  [DESCRIPTION] <- other flakes
+Or, with nix experimental features, search the nixpkgs flake instead.
+PACKAGE_NAME  [VERSION]  [DESCRIPTION]
 
 Mandatory arguments to long options are mandatory for short options too.
 
