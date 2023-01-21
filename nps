@@ -335,21 +335,6 @@ refresh() {
     mkdir -p /tmp/nps/raw_caches
 
     if [ "$EXPERIMENTAL" == "true" ]; then
-        # nix registry list  list all registries (URL shortcuts) present
-        #                      on the system
-        # rg                 find lines containing "system flake" at the
-        #                      beginning, separated by one or more spaces
-        # sed                extract registry name
-        SYSTEM_FLAKE="$(nix \
-            --extra-experimental-features "nix-command flakes" \
-            registry list | \
-            rg "^system *flake" | \
-            sed -e 's/^system *flake:\([^ ]*\) path.*/\1/')"
-
-        echo
-        echo "[DEBUG] System flake: $SYSTEM_FLAKE"
-        echo
-
         TEST_STRING="""
 * [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.AMB-plugins[0m (0.8.1)
   [32;1m[0mA set of ambisonics ladspa plugins
@@ -369,9 +354,9 @@ refresh() {
         echo "$(echo "$FILTERED_TEST_STRING")"
         echo
 
-        echo "Fetch packages from system registry flake..."
+        echo "Fetch packages from nixpkgs..."
         CACHE="$(nix --extra-experimental-features "nix-command flakes" \
-                search "$SYSTEM_FLAKE" \
+                search nixpkgs \
             2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
 
         [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
@@ -384,7 +369,7 @@ refresh() {
         echo "$(echo "$CACHE" | head)"
         echo
 
-        echo "$CACHE" > "/tmp/nps/raw_caches/$SYSTEM_FLAKE"
+        echo "$CACHE" > "/tmp/nps/raw_caches/nixpkgs"
 
         echo
         echo "[DEBUG] content of /tmp/nps/raw_caches:"
@@ -392,9 +377,9 @@ refresh() {
         echo
 
         echo "Filter registry flake"
-        # Use _no_ registry name ("") for system flake
+        # Use _no_ registry name ("") for nixpkgs
         FILTERED_CACHES="$(filter_caches "" \
-                < "/tmp/nps/raw_caches/$SYSTEM_FLAKE")"
+                < "/tmp/nps/raw_caches/nixpkgs")"
 
         echo
         echo "[DEBUG] head \$FILTERED_CACHES:"
