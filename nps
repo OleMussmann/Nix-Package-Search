@@ -317,9 +317,17 @@ refresh() {
     # Create cache folder, if not exists
     mkdir -p "$SEARCH_FOLDER"
 
+        echo
+        echo "[DEBUG] \$SEARCH_FOLDER: $SEARCH_FOLDER"
+        echo "[DEBUG] \$CACHE_FILE: $CACHE_FILE"
+        echo "[DEBUG] \$EXPERIMENTAL_LOG_FILE: $EXPERIMENTAL_LOG_FILE"
+        echo "[DEBUG] \$EXPERIMENTAL_CACHE_FILE: $EXPERIMENTAL_CACHE_FILE"
+        echo "[DEBUG] \$EXPERIMENTAL: $EXPERIMENTAL"
+        echo
+
     # Delete scan log file, if exists
     [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
-            rm -r -- "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE"
+            rm -r -- "${SEARCH_FOLDER:?}/${EXPERIMENTAL_LOG_FILE:?}"
 
     # Delete temporary cache folder, if exists
     [ -e "/tmp/nps/" ] && rm -r -- "/tmp/nps/"
@@ -337,31 +345,94 @@ refresh() {
             rg "^system *flake" | \
             sed -e 's/^system *flake:\([^ ]*\) path.*/\1/')"
 
+        echo
+        echo "[DEBUG] System flake: $SYSTEM_FLAKE"
+        echo
+
+        TEST_STRING="""
+* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.AMB-plugins[0m (0.8.1)
+  [32;1m[0mA set of ambisonics ladspa plugins
+
+* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.ArchiSteamFarm[0m (5.4.0.3)
+
+* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.AusweisApp2[0m
+  [32;1m[0mAuthentication software for the German ID card
+
+"""
+        echo "$TEST_STRING" > "/tmp/nps/test_string"
+
+        FILTERED_TEST_STRING="$(filter_caches "" \
+                < "/tmp/nps/test_string")"
+        echo
+        echo "[DEBUG] filtered \$TEST_STRING:"
+        echo "$(echo "$FILTERED_TEST_STRING")"
+        echo
+
         echo "Fetch packages from system registry flake..."
         CACHE="$(nix search "$SYSTEM_FLAKE" \
             2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+
+        [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
+            echo "[DEBUG] head \$SEARCH_FOLDER/\$EXPERIMENTAL_LOG_FILE:" && \
+            head "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" || \
+            echo "[DEBUG] no \$SEARCH_FOLDER/\$EXPERIMENTAL_LOG_FILE"
+
+        echo
+        echo "[DEBUG] head \$CACHE:"
+        echo "$(echo "$CACHE" | head)"
+        echo
+
         echo "$CACHE" > "/tmp/nps/raw_caches/$SYSTEM_FLAKE"
+
+        echo
+        echo "[DEBUG] content of /tmp/nps/raw_caches:"
+        ls -lah /tmp/nps/raw_caches
+        echo
 
         echo "Filter registry flake"
         # Use _no_ registry name ("") for system flake
-        filter_caches "" < "/tmp/nps/raw_caches/$SYSTEM_FLAKE" \
-            > "/tmp/nps/$EXPERIMENTAL_CACHE_FILE"
+        FILTERED_CACHES="$(filter_caches "" \
+                < "/tmp/nps/raw_caches/$SYSTEM_FLAKE")"
+
+        echo
+        echo "[DEBUG] head \$FILTERED_CACHES:"
+        echo "$(echo "$FILTERED_CACHES" | head)"
+        echo
+
+        echo "$FILTERED_CACHES" > "/tmp/nps/$EXPERIMENTAL_CACHE_FILE"
+
+        echo
+        echo "[DEBUG] content of /tmp/nps/:"
+        ls -lah /tmp/nps/
+        echo
 
         echo "Move cache to $SEARCH_FOLDER"
         mv "/tmp/nps/$EXPERIMENTAL_CACHE_FILE" \
                 "$SEARCH_FOLDER/$EXPERIMENTAL_CACHE_FILE"
         echo "Done"
-	echo
+        echo
     else
         echo "Fetch packages from channels..."
         # First writing to a tmp file, so the cache is not destroyed
         # if the cache refreshing is interrupted.
-        if CACHE="$(nix-env -qaP --description)"; then
+        # '--arg overlays "[]"' prevents overlays from being evaluated, since
+        # that might crash the query.
+        if CACHE="$(nix-env -qaP --description --arg overlays "[]")"; then
             echo "$CACHE" >| "/tmp/nps/$CACHE_FILE"
         else
             # Raise channel error if nix-env -qaP fails.
             channel_error
         fi
+
+        echo
+        echo "[DEBUG] head \$CACHE:"
+        echo "$(echo "$CACHE" | head)"
+        echo
+
+        echo
+        echo "[DEBUG] content of /tmp/nps/:"
+        ls -lah /tmp/nps/
+        echo
 
         # Raise channel error if cache file is empty.
         if [ -s "/tmp/nps/$CACHE_FILE" ]; then
@@ -369,7 +440,7 @@ refresh() {
             echo "Move cache to $SEARCH_FOLDER"
             mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
             echo "Done"
-	    echo
+            echo
         else
             # Cache file is empty
             channel_error
