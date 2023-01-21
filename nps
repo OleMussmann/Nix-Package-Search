@@ -268,7 +268,7 @@ channel_error() {
 filter_caches() {
     REGISTRY_NAME="$1"
 
-    # cat  print file content
+    # ansifilter  remove ANSI text formatting and color codes
     #
     # sed  filter text stream; take a package entry like
     #          "* legacyPackages.x86_64-linux.AMB-plugins (0.8.1)"
@@ -282,12 +282,9 @@ filter_caches() {
     #          "  A set of ambisonics ladspa plugins"
     #      - FILTER_PACKAGE_NAME
     #        isolate package name, match
-    #          "*[not a '.'].[not a '.'].PACKAGE_NAME\x1B\[0m"
+    #          "*[not a '.'].[not a '.'].PACKAGE_NAME VERSION_NUMBER"
     #        and replace it with
-    #          "OPTIONAL_REGISTRY_NAME[no space]PACKAGE_NAME"
-    #      - FILTER_SECOND_LINE
-    #        remove formatting, delete
-    #          "  \x1B\[32;1m\x1B\[0m" from the start of the line
+    #          "OPTIONAL_REGISTRY_NAME[no space]PACKAGE_NAME VERSION_NUMBER"
     #      - resulting in
     #          "OPTIONAL_REGISTRY_NAME[no space]AMB-plugins 0.8.1"
     #          "A set of ambisonics ladspa plugins"
@@ -304,17 +301,15 @@ filter_caches() {
     #
     # >    and write it to the OUTPUT_FILE
 
-    ADD_VERSION_IF_MISSING="/^*/s/\(\x1B\[0m\)$/\1 (-)/"
+    ADD_VERSION_IF_MISSING="/^*/s/\([^)]\)$/\1 (-)/"
     FILTER_VERSION="/^*/s/(\(.*\))/\1/"
-    FILTER_PACKAGE_NAME="s/^\*[^\.]*\.[^\.]*\.\(.*\)\x1B\[0m"
+    FILTER_PACKAGE_NAME="s/^\*[^\.]*\.[^\.]*\.\(.* [^ ]*$\)"
     FILTER_PACKAGE_NAME+="/$REGISTRY_NAME\1/"
 
-    FILTER_SECOND_LINE="s/^  \x1B\[32;1m\x1B\[0m//"
-
+    ansifilter | \
     sed -e "$ADD_VERSION_IF_MISSING" | \
     sed -e "$FILTER_VERSION" | \
     sed -e "$FILTER_PACKAGE_NAME" | \
-    sed -e "$FILTER_SECOND_LINE" | \
     awk -v RS="" '{$1=$1; print $0}'
 }
 
