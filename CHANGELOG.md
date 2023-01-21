@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New
 - Optionally use the nix system registry flake as a source
+- Hardcode `nixpkgs` as flake to search
 - Update documentation
 
 ### Removed
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Inconsistent use of empty lines separating matches
 - Duplicated package matches
+- Color mode options
 
 ## [0.1.6] - 2023-01-08
 
