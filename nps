@@ -341,7 +341,9 @@ refresh() {
         # rg                 find lines containing "system flake" at the
         #                      beginning, separated by one or more spaces
         # sed                extract registry name
-        SYSTEM_FLAKE="$(nix registry list | \
+        SYSTEM_FLAKE="$(nix \
+            --extra-experimental-features "nix-command flakes" \
+            registry list | \
             rg "^system *flake" | \
             sed -e 's/^system *flake:\([^ ]*\) path.*/\1/')"
 
@@ -369,9 +371,8 @@ refresh() {
         echo
 
         echo "Fetch packages from system registry flake..."
-        CACHE="$(nix search \
-                --extra-experimental-features "nix-command flakes" \
-                "$SYSTEM_FLAKE" \
+        CACHE="$(nix --extra-experimental-features "nix-command flakes" \
+                search "$SYSTEM_FLAKE" \
             2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
 
         [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
