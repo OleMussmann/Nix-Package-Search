@@ -369,7 +369,9 @@ refresh() {
         echo
 
         echo "Fetch packages from system registry flake..."
-        CACHE="$(nix search "$SYSTEM_FLAKE" \
+        CACHE="$(nix search \
+                --extra-experimental-features "nix-command flakes" \
+                "$SYSTEM_FLAKE" \
             2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
 
         [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
