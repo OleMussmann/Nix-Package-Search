@@ -447,12 +447,12 @@ while true; do
             # Remove possible leading '=' sign in option.
             COLOR_MODE="${2#=}"
             case "$COLOR_MODE" in
-                none|always|auto)
+                never|always|auto)
                     :
                     ;;
                 *)
                     invalid_option "color mode" "$COLOR_MODE" \
-                        "\"none\", \"always\" or \"auto\""
+                        "\"never\", \"always\" or \"auto\""
                 esac
             shift 2
             ;;
