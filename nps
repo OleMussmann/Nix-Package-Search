@@ -335,24 +335,10 @@ refresh() {
     mkdir -p /tmp/nps/raw_caches
 
     if [ "$EXPERIMENTAL" == "true" ]; then
-        TEST_STRING="""
-* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.AMB-plugins[0m (0.8.1)
-  [32;1m[0mA set of ambisonics ladspa plugins
 
-* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.ArchiSteamFarm[0m (5.4.0.3)
 
-* [0;1m[32;1m[0;1mlegacyPackages.x86_64-linux.AusweisApp2[0m
-  [32;1m[0mAuthentication software for the German ID card
 
-"""
-        echo "$TEST_STRING" > "/tmp/nps/test_string"
 
-        FILTERED_TEST_STRING="$(filter_caches "" \
-                < "/tmp/nps/test_string")"
-        echo
-        echo "[DEBUG] filtered \$TEST_STRING:"
-        echo "$(echo "$FILTERED_TEST_STRING")"
-        echo
 
         echo "Fetch packages from nixpkgs..."
         CACHE="$(nix --extra-experimental-features "nix-command flakes" \
