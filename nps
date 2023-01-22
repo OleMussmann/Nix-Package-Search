@@ -356,6 +356,8 @@ refresh() {
 
             # After searching is finished, kill the print command.
             kill "$PID_WAIT"
+            echo -ne "\rNumber of flakes evaluated: $(wc -l < \
+                    "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
             echo
 
             echo
