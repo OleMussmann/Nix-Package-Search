@@ -385,7 +385,7 @@ refresh() {
         echo "Done"
         echo
     else
-        echo "Fetch packages from channels..."
+        echo "Fetch packages from channels, this might take a while..."
         # First writing to a tmp file, so the cache is not destroyed
         # if the cache refreshing is interrupted.
         # '--arg overlays "[]"' prevents overlays from being evaluated, since
@@ -407,16 +407,16 @@ refresh() {
         ls -lah /tmp/nps/
         echo
 
-        # Raise channel error if cache file is empty.
-        if [ -s "/tmp/nps/$CACHE_FILE" ]; then
-            # Cache file has content
+        # Raise channel error if cache has not enough content.
+        if [ "$(wc -c < /tmp/nps/$CACHE_FILE)" -lt 10 ]; then
+            # Cache file is (too) empty
+            channel_error
+        else
+            # Cache file has meaningful content
             echo "Move cache to $SEARCH_FOLDER"
             mv "/tmp/nps/$CACHE_FILE" "$SEARCH_FOLDER/$CACHE_FILE"
             echo "Done"
             echo
-        else
-            # Cache file is empty
-            channel_error
         fi
     fi
 }
