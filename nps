@@ -335,32 +335,55 @@ refresh() {
     mkdir -p /tmp/nps/raw_caches
 
     if [ "$EXPERIMENTAL" == "true" ]; then
+        echo "Fetch packages from nixpkgs, this might take a while."
 
+        touch "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE"
 
+        # Print the length of the log file until killed.
+        while true
+        do
+            echo -ne "\rNumber of flakes evaluated: $(wc -l < \
+                    "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+            sleep .1
+        done &
 
+        # Get the process ID of the print loop.
+        PID_WAIT="$!"
 
-
-        echo "Fetch packages from nixpkgs..."
-        CACHE="$(nix --extra-experimental-features "nix-command flakes" \
+        if CACHE="$(nix --extra-experimental-features "nix-command flakes" \
                 search nixpkgs \
-            2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+                2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"; then
 
-        [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
+            # After searching is finished, kill the print command.
+            kill "$PID_WAIT"
+            echo
+
+            echo
+            echo "[DEBUG] head \$CACHE:"
+            echo "$(echo "$CACHE" | head)"
+            echo
+
+            echo "$CACHE" > "/tmp/nps/raw_caches/nixpkgs"
+
+            echo
+            echo "[DEBUG] content of /tmp/nps/raw_caches:"
+            ls -lah /tmp/nps/raw_caches
+            echo
+        else
+            # After searching is failed, kill the print command.
+            kill "$PID_WAIT"
+            echo
+
+            echo
+            echo "[DEBUG] Package search failed."
+            echo
+
+            [ -e "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" ] && \
             echo "[DEBUG] head \$SEARCH_FOLDER/\$EXPERIMENTAL_LOG_FILE:" && \
             head "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE" || \
-            echo "[DEBUG] no \$SEARCH_FOLDER/\$EXPERIMENTAL_LOG_FILE"
-
-        echo
-        echo "[DEBUG] head \$CACHE:"
-        echo "$(echo "$CACHE" | head)"
-        echo
-
-        echo "$CACHE" > "/tmp/nps/raw_caches/nixpkgs"
-
-        echo
-        echo "[DEBUG] content of /tmp/nps/raw_caches:"
-        ls -lah /tmp/nps/raw_caches
-        echo
+            echo "[DEBUG] no experimental log file found."
+            exit 1
+        fi
 
         echo "Filter registry flake"
         # Use _no_ registry name ("") for nixpkgs
