@@ -206,6 +206,9 @@ SPACE_PLACEHOLDER="\x01"
 # Don't refresh by default.
 REFRESH=false
 
+# Spinner characters
+SPINNER_CHARS=("." "o" "O" "º" "°" "º" "O" "o")
+
 # Test if this version of `getopt` supports long options.
 # We can cheat our way around `errexit` by using `if`. To access the
 # actual exit status, we now need ${PIPESTATUS[0]}.
@@ -312,6 +315,38 @@ filter_caches() {
     awk -v RS="" '{$1=$1; print $0}'
 }
 
+function start_spinner {
+    #while : ; do for X in ${SPINNER_CHARS[@]} ; do echo -en "\r$X $(spinner_function)" ; sleep 0.1 ; done ; done &
+    set +m
+    { while :
+          do
+              for X in "${SPINNER_CHARS[@]}"
+              do
+                  echo -en "\r$X $(spinner_function)"
+                  sleep 0.1
+              done
+          done & } 2>/dev/null
+    SPINNER_PID=$!
+}
+
+function stop_spinner {
+    {
+        # Without this safeguard the function tries to kill a non-existent PID
+        # and exits with error code 1.
+        # Is $SPINNER_PID set?
+        if [ -n "${SPINNER_PID:-}" ]; then
+            kill "$SPINNER_PID"; unset SPINNER_PID && wait
+            # I don't know why the sleep is necessary. Some kind of race
+            # condition? Without it, the "Killed" message is still
+            # printed _sometimes_.
+            sleep .1
+        fi
+    }
+    set -m
+}
+# Make sure the spinner is killed even if the script is interrupted.
+trap stop_spinner EXIT
+
 refresh() {
     # Create cache folder, if not exists
     mkdir -p "$SEARCH_FOLDER"
@@ -335,33 +370,38 @@ refresh() {
     mkdir -p /tmp/nps/raw_caches
 
     if [ "$EXPERIMENTAL" == "true" ]; then
+        # Use `nix search nixpkgs` instead of `nix-env -qaP`
         echo "Fetch packages from nixpkgs, this might take a while."
 
         touch "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE"
 
         # Print the length of the log file until killed.
-        while true
-        do
-            echo -ne "\rNumber of flakes evaluated: $(wc -l < \
-                    "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
-            sleep .1
-        done &
+        function spinner_function {
+            echo "Number of flakes evaluated: $(wc -l < \
+                "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+        }
+        # If in terminal (and not piped or forwarded)
+        if [ -t 1 ]; then
+            start_spinner
+        fi
 
-        # Get the process ID of the print loop.
-        PID_WAIT="$!"
 
         if CACHE="$(nix --extra-experimental-features "nix-command flakes" \
                 search nixpkgs \
                 2>> "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"; then
 
-            # After searching is finished, kill the print command.
-            kill "$PID_WAIT"
-            echo -ne "\rNumber of flakes evaluated: $(wc -l < \
-                    "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE")"
+            # If in terminal (and not piped or forwarded)
+            if [ -t 1 ]; then
+                # After searching is finished, kill the print command.
+                stop_spinner
+            fi
+            echo -ne "\r  Number of flakes evaluated: $(wc -l < \
+                    "$SEARCH_FOLDER/$EXPERIMENTAL_LOG_FILE") Done."
             echo
 
             echo
             echo "[DEBUG] head \$CACHE:"
+	    # The silly double-echo prevents a pipefail for `head`
             echo "$(echo "$CACHE" | head)"
             echo
 
@@ -372,8 +412,11 @@ refresh() {
             ls -lah /tmp/nps/raw_caches
             echo
         else
-            # After searching is failed, kill the print command.
-            kill "$PID_WAIT"
+            # If in terminal (and not piped or forwarded)
+            if [ -t 1 ]; then
+                # After searching is finished, kill the print command.
+                stop_spinner
+            fi
             echo
 
             echo
@@ -394,6 +437,7 @@ refresh() {
 
         echo
         echo "[DEBUG] head \$FILTERED_CACHES:"
+	# The silly double-echo prevents a pipefail for `head`
         echo "$(echo "$FILTERED_CACHES" | head)"
         echo
 
@@ -410,7 +454,15 @@ refresh() {
         echo "Done"
         echo
     else
-        echo "Fetch packages from channels, this might take a while..."
+        # Use `nix-env -qaP` to query packages from channels
+        function spinner_function {
+            echo "Fetch packages from channels, this might take a while..."
+        }
+        if [ -t 1 ]; then
+            start_spinner
+        else
+            spinner_function
+        fi
         # First writing to a tmp file, so the cache is not destroyed
         # if the cache refreshing is interrupted.
         # '--arg overlays "[]"' prevents overlays from being evaluated, since
@@ -421,9 +473,18 @@ refresh() {
             # Raise channel error if nix-env -qaP fails.
             channel_error
         fi
+        if [ -t 1 ]; then
+            # After searching is finished, kill the print command.
+            stop_spinner
+        fi
+        echo -ne "\r  Fetch packages from channels, this" \
+                "might take a while... Done."
+        echo
+        sleep 1
 
         echo
         echo "[DEBUG] head \$CACHE:"
+	# The silly double-echo prevents a pipefail for `head`
         echo "$(echo "$CACHE" | head)"
         echo
 
@@ -435,6 +496,9 @@ refresh() {
         # Raise channel error if cache has not enough content.
         if [ "$(wc -c < /tmp/nps/$CACHE_FILE)" -lt 10 ]; then
             # Cache file is (too) empty
+	    echo "[DEBUG] cache file is too empty"
+	    echo "[DEBUG] wc -c: $(wc -c < /tmp/nps/$CACHE_FILE)"
+	    echo "[DEBUG] wc -l: $(wc -l < /tmp/nps/$CACHE_FILE)"
             channel_error
         else
             # Cache file has meaningful content
