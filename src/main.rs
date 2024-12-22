@@ -2,20 +2,6 @@ use clap::{ColorChoice, Parser, ValueEnum};
 use env_logger;
 use log;
 use owo_colors::{OwoColorize, Stream::Stdout};
-use textwrap::{indent, fill};
-
-/// Column name options
-#[derive(Clone, Debug, ValueEnum)]
-enum Columns {
-    /// Show all columns
-    All,
-    /// Show only PACKAGE_NAME
-    None,
-    /// Also show PACKAGE_VERSION
-    Version,
-    /// Also show PACKAGE_DESCRIPTION
-    Description,
-}
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -59,17 +45,6 @@ struct Cli {
     /// Show environment variable configuration options and exit
     #[arg(long)]
     show_config_options: bool,
-}
-
-fn print_env_var_options () {
-    println!("{}", "CONFIGURATION".if_supports_color(Stdout, |text| text.bold()));
-    println!("{}", fill("`nps` can be configured with environment variables. You can set these in the configuration file of your shell, e.g. .bashrc/.zshrc . Command line options overrule environment variables.", 70));
-    println!();
-    println!("{}", "NIX_PACKAGE_SEARCH_FLIP".if_supports_color(Stdout, |text| text.bold()));
-    println!("{}", indent(&fill("Flip the order of matches? By default most relevant matches appear first. Flipping the order makes them appear last and is thus easier to read with long output.", 67), "   "));
-    println!("{}", indent("possible values: true, false", "      "));
-    println!("{}", indent("default: false", "      "));
-    //println!("{}", indent(&"default: false").if_supports_color(Stdout, |text| text.italic()), "      ");
 }
 
 static ENV_VAR_OPTIONS: &str = "
@@ -133,6 +108,38 @@ NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
     default: true
 ";
 
+/// Column name options
+#[derive(Clone, Debug, ValueEnum)]
+enum Columns {
+    /// Show all columns
+    All,
+    /// Show only PACKAGE_NAME
+    None,
+    /// Also show PACKAGE_VERSION
+    Version,
+    /// Also show PACKAGE_DESCRIPTION
+    Description,
+}
+
+
+fn print_formatted_option_help_text(help_text: &str) {
+    let mut header = false;
+
+    for line in help_text.lines() {
+        if line.is_empty() {
+            header = true;
+            println!();
+            continue;
+        }
+        if header {
+            println!("{}", line.if_supports_color(Stdout, |text| text.bold()));
+            header = false;
+        } else {
+            println!("{}", line);
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -151,12 +158,11 @@ fn main() {
         ColorChoice::Never => owo_colors::set_override(false),
     }
 
-
     env_logger::Builder::new().filter_level(log_level).init();
 
     if cli.show_config_options {
-        print_env_var_options();
-        return
+        print_formatted_option_help_text(ENV_VAR_OPTIONS);
+        return;
     };
 
     println!("color: {:?}", cli.color);
