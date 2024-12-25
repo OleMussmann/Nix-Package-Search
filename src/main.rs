@@ -1,4 +1,5 @@
 use clap::{ColorChoice, Parser, ValueEnum};
+use clap::builder::styling::{AnsiColor, Effects, Styles};
 use env_logger;
 use log;
 use owo_colors::{OwoColorize, Stream::Stdout};
@@ -14,7 +15,7 @@ use owo_colors::{OwoColorize, Stream::Stdout};
 ///   direct    SEARCH_TERM-bar
 ///   indirect  foo-SEARCH_TERM-bar (or match other columns)
 #[derive(Parser)]
-#[command(author, version, verbatim_doc_comment)]
+#[command(author, version, verbatim_doc_comment, styles=styles())]
 struct Cli {
     /// Highlight search matches in color
     #[arg(short, long="color", visible_alias="colour", default_value_t = ColorChoice::Auto)]
@@ -121,6 +122,51 @@ enum Columns {
     Description,
 }
 
+fn styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Red.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Red.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Blue.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Green.on_default())
+}
+
+//pub fn get_styles() -> clap::builder::Styles {
+//    clap::builder::Styles::styled()
+//        .usage(
+//            anstyle::Style::new()
+//                .bold()
+//                .underline()
+//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
+//        )
+//        .header(
+//            anstyle::Style::new()
+//                .bold()
+//                .underline()
+//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
+//        )
+//        .literal(
+//            anstyle::Style::new().fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+//        )
+//        .invalid(
+//            anstyle::Style::new()
+//                .bold()
+//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Red))),
+//        )
+//        .error(
+//            anstyle::Style::new()
+//                .bold()
+//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Red))),
+//        )
+//        .valid(
+//            anstyle::Style::new()
+//                .bold()
+//                .underline()
+//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+//        )
+//        .placeholder(
+//            anstyle::Style::new().fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::White))),
+//        )
+//}
 
 fn print_formatted_option_help_text(help_text: &str) {
     let mut header = false;
