@@ -27,7 +27,7 @@ struct Cli {
 
     /// Turn debugging information on
     ///
-    /// Use multiple times for increased verbosity
+    /// Use up to four times for increased verbosity
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
 
