@@ -3,6 +3,7 @@ use clap::builder::styling::{AnsiColor, Effects, Styles};
 use env_logger;
 use log;
 use owo_colors::{OwoColorize, Stream::Stdout};
+use std::{fs, process::ExitCode};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -130,44 +131,6 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
-//pub fn get_styles() -> clap::builder::Styles {
-//    clap::builder::Styles::styled()
-//        .usage(
-//            anstyle::Style::new()
-//                .bold()
-//                .underline()
-//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
-//        )
-//        .header(
-//            anstyle::Style::new()
-//                .bold()
-//                .underline()
-//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
-//        )
-//        .literal(
-//            anstyle::Style::new().fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
-//        )
-//        .invalid(
-//            anstyle::Style::new()
-//                .bold()
-//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Red))),
-//        )
-//        .error(
-//            anstyle::Style::new()
-//                .bold()
-//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Red))),
-//        )
-//        .valid(
-//            anstyle::Style::new()
-//                .bold()
-//                .underline()
-//                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
-//        )
-//        .placeholder(
-//            anstyle::Style::new().fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::White))),
-//        )
-//}
-
 fn print_formatted_option_help_text(help_text: &str) {
     let mut header = false;
 
@@ -186,7 +149,7 @@ fn print_formatted_option_help_text(help_text: &str) {
     }
 }
 
-fn main() {
+fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let log_level = match cli.debug {
@@ -208,7 +171,7 @@ fn main() {
 
     if cli.show_config_options {
         print_formatted_option_help_text(ENV_VAR_OPTIONS);
-        return;
+        return ExitCode::SUCCESS
     };
 
     println!("color: {:?}", cli.color);
@@ -223,4 +186,6 @@ fn main() {
     log::info!("information");
     log::warn!("warning");
     log::error!("error");
+
+    return ExitCode::SUCCESS
 }
