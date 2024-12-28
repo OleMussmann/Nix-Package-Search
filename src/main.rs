@@ -4,6 +4,7 @@ use env_logger;
 use log;
 use owo_colors::{OwoColorize, Stream::Stdout};
 use std::{fs, process::ExitCode};
+use grep;
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -149,8 +150,39 @@ fn print_formatted_option_help_text(help_text: &str) {
     }
 }
 
+fn get_matches(search_term: &str, content: &str, case_insensitive: bool) -> String {
+
+    let matcher = grep::regex::RegexMatcherBuilder::new().case_insensitive(case_insensitive).build(search_term).unwrap();
+    let mut printer = grep::printer::Standard::new_no_color(vec![]);
+    grep::searcher::SearcherBuilder::new().line_number(false).build().search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher)).unwrap();
+
+    // into_inner gives us back the underlying writer we provided to
+    // new_no_color, which is wrapped in a termcolor::NoColor. Thus, a second
+    // into_inner gives us back the actual buffer.
+    let output = String::from_utf8(printer.into_inner().into_inner()).unwrap();
+
+    output
+}
+
+struct Column<'a> {
+    rows: Vec<&'a str>,
+    max_row_length: i8,
+}
+
+fn sort_matches(matches: &str, columns: &str, flip: bool) -> (Column, Column, Column) {
+    let my_match = Column(matches, 8);
+    return (my_match, my_match, my_match)
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
+
+    // Set a supports-color override based on the variable passed in.
+    match cli.color {
+        ColorChoice::Always => owo_colors::set_override(true),
+        ColorChoice::Auto => {}
+        ColorChoice::Never => owo_colors::set_override(false),
+    }
 
     let log_level = match cli.debug {
         0 => log::LevelFilter::Error,
@@ -159,13 +191,6 @@ fn main() -> ExitCode {
         3 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     };
-
-    // Set a supports-color override based on the variable passed in.
-    match cli.color {
-        ColorChoice::Always => owo_colors::set_override(true),
-        ColorChoice::Auto => {}
-        ColorChoice::Never => owo_colors::set_override(false),
-    }
 
     env_logger::Builder::new().filter_level(log_level).init();
 
@@ -192,6 +217,23 @@ fn main() -> ExitCode {
     log::info!("information");
     log::warn!("warning");
     log::error!("error");
+
+    let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
+
+    let content = match fs::read_to_string(file_path) {
+        Ok(content) => content,
+        Err(err) => {
+            log::error!("Can't open file {file_path}: {err}");
+            return ExitCode::FAILURE
+        }
+    };
+
+    let case_insensitive = false;
+    let matches = get_matches("neovim", &content, case_insensitive);
+
+    println!("{matches}");
+
+    let sorted_matches = sort_matches(&matches, cli.columns, cli.flip);
 
     return ExitCode::SUCCESS
 }
