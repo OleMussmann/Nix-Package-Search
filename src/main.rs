@@ -169,6 +169,11 @@ fn main() -> ExitCode {
 
     env_logger::Builder::new().filter_level(log_level).init();
 
+    if cli.debug > 4 {
+        log::error!("Max log level is 4, e.g. -dddd");
+        std::process::exit(1)
+    }
+
     if cli.show_config_options {
         print_formatted_option_help_text(ENV_VAR_OPTIONS);
         return ExitCode::SUCCESS
@@ -180,6 +185,7 @@ fn main() -> ExitCode {
     println!("flip: {:?}", cli.flip);
     println!("refresh: {:?}", cli.refresh);
     println!("separate: {:?}", cli.separate);
+    println!("show-config-options: {:?}", cli.show_config_options);
 
     log::trace!("trace");
     log::debug!("debug");
