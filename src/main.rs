@@ -1,10 +1,15 @@
-use clap::{ColorChoice, Parser, ValueEnum};
 use clap::builder::styling::{AnsiColor, Effects, Styles};
+use clap::{ColorChoice, Parser, ValueEnum};
 use env_logger;
-use log;
-use owo_colors::{OwoColorize, Stream::Stdout};
-use std::{fs, process::ExitCode};
 use grep;
+use grep::printer::UserColorSpec;
+use grep::regex::RegexMatcher;
+use log;
+use std::io;
+use std::io::{IsTerminal, Write};
+use std::{fs, process::ExitCode};
+use termcolor::ColorChoice as TermColorChoice;
+use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -16,7 +21,7 @@ use grep;
 ///   exact     SEARCH_TERM
 ///   direct    SEARCH_TERM-bar
 ///   indirect  foo-SEARCH_TERM-bar (or match other columns)
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version, verbatim_doc_comment, styles=styles())]
 struct Cli {
     /// Highlight search matches in color
@@ -24,8 +29,8 @@ struct Cli {
     color: ColorChoice,
 
     /// Choose columns to show
-    #[arg(short='C', long="columns", default_value_t = Columns::All, value_enum)]
-    columns: Columns,
+    #[arg(short='C', long="columns", default_value_t = ColumnsChoice::All, value_enum)]
+    columns: ColumnsChoice,
 
     /// Turn debugging information on
     ///
@@ -37,6 +42,10 @@ struct Cli {
     #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
     flip: bool,
 
+    /// Ignore case
+    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
+    ignore_case: bool,
+
     /// Refresh package cache and exit
     #[arg(short, long)]
     refresh: bool,
@@ -44,6 +53,10 @@ struct Cli {
     /// Separate match types with a newline
     #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
     separate: bool,
+
+    /// Search for any SEARCH_TERM in package names, description or versions
+    #[arg(required_unless_present_any = ["show_config_options", "refresh"])]
+    search_term: Option<String>,
 
     /// Show environment variable configuration options and exit
     #[arg(long)]
@@ -113,7 +126,7 @@ NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
 
 /// Column name options
 #[derive(Clone, Debug, ValueEnum)]
-enum Columns {
+enum ColumnsChoice {
     /// Show all columns
     All,
     /// Show only PACKAGE_NAME
@@ -132,8 +145,10 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
-fn print_formatted_option_help_text(help_text: &str) {
+fn print_formatted_option_help_text(help_text: &str, color_choice: TermColorChoice) {
     let mut header = false;
+
+    let mut stdout = StandardStream::stdout(color_choice);
 
     for line in help_text.lines() {
         if line.is_empty() {
@@ -142,7 +157,9 @@ fn print_formatted_option_help_text(help_text: &str) {
             continue;
         }
         if header {
-            println!("{}", line.if_supports_color(Stdout, |text| text.bold()));
+            stdout.set_color(ColorSpec::new().set_bold(true));
+            writeln!(stdout, "{}", line);
+            stdout.set_color(ColorSpec::new().set_bold(false));
             header = false;
         } else {
             println!("{}", line);
@@ -150,11 +167,17 @@ fn print_formatted_option_help_text(help_text: &str) {
     }
 }
 
-fn get_matches(search_term: &str, content: &str, case_insensitive: bool) -> String {
-
-    let matcher = grep::regex::RegexMatcherBuilder::new().case_insensitive(case_insensitive).build(search_term).unwrap();
+fn get_matches(search_term: &str, content: &str, ignore_case: bool) -> String {
+    let matcher = grep::regex::RegexMatcherBuilder::new()
+        .case_insensitive(ignore_case)
+        .build(search_term)
+        .unwrap();
     let mut printer = grep::printer::Standard::new_no_color(vec![]);
-    grep::searcher::SearcherBuilder::new().line_number(false).build().search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher)).unwrap();
+    grep::searcher::SearcherBuilder::new()
+        .line_number(false)
+        .build()
+        .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))
+        .unwrap();
 
     // into_inner gives us back the underlying writer we provided to
     // new_no_color, which is wrapped in a termcolor::NoColor. Thus, a second
@@ -164,25 +187,199 @@ fn get_matches(search_term: &str, content: &str, case_insensitive: bool) -> Stri
     output
 }
 
-struct Column<'a> {
-    rows: Vec<&'a str>,
-    max_row_length: i8,
+fn convert_case(string: &str, ignore_case: bool) -> String {
+    match ignore_case {
+        true => string.to_lowercase(),
+        false => string.to_string(),
+    }
 }
 
-fn sort_matches(matches: &str, columns: &str, flip: bool) -> (Column, Column, Column) {
-    let my_match = Column(matches, 8);
-    return (my_match, my_match, my_match)
+#[derive(Debug)]
+struct Row {
+    name: String,
+    version: String,
+    description: String,
+}
+
+#[derive(Debug)]
+struct Matches {
+    exact: Vec<Row>,
+    direct: Vec<Row>,
+    indirect: Vec<Row>,
+}
+
+fn print_matches(
+    color_specs: grep::printer::ColorSpecs,
+    color_choice: TermColorChoice,
+    joined_matches: String,
+    matcher: RegexMatcher,
+) {
+    let mut printer = grep::printer::StandardBuilder::new()
+        .color_specs(color_specs)
+        .build(termcolor::StandardStream::stdout(color_choice));
+    grep::searcher::SearcherBuilder::new()
+        .line_number(false)
+        .build()
+        .search_slice(&matcher, &joined_matches.as_bytes(), printer.sink(&matcher))
+        .unwrap();
+}
+
+fn sort_matches<'a>(
+    raw_matches: String,
+    search_term: &str,
+    columns: ColumnsChoice,
+    flip: bool,
+    ignore_case: bool,
+    color_choice: TermColorChoice,
+    separate: bool,
+) -> Vec<String> {
+    let mut matches = Matches {
+        exact: vec![],
+        direct: vec![],
+        indirect: vec![],
+    };
+    let mut name_lengths: Vec<usize> = vec![];
+    let mut version_lengths: Vec<usize> = vec![];
+
+    for line in raw_matches.lines() {
+        let mut split_line: Vec<&str> = line.splitn(3, ' ').collect();
+        while split_line.len() < 3 {
+            split_line.push(""); // fill empty fields
+        }
+        let (name, version, description) = (
+            split_line[0].to_string(),
+            split_line[1].to_string(),
+            split_line[2].to_string(),
+        );
+
+        name_lengths.push(name.len());
+        version_lengths.push(version.len());
+
+        let converted_search_term = &convert_case(&search_term, ignore_case);
+        let converted_name = &convert_case(&name, ignore_case);
+
+        let row = Row {
+            name,
+            version,
+            description,
+        };
+
+        if converted_name == converted_search_term {
+            matches.exact.push(row);
+        } else if converted_name.starts_with(converted_search_term) {
+            matches.direct.push(row);
+        } else {
+            matches.indirect.push(row);
+        }
+    }
+
+    let name_padding = *name_lengths.iter().max().unwrap_or(&0);
+    let version_padding = *version_lengths.iter().max().unwrap_or(&0);
+
+    let mut exact: Vec<String> = vec![];
+    let mut direct: Vec<String> = vec![];
+    let mut indirect: Vec<String> = vec![];
+    let mut output: Vec<String> = vec![];
+
+    for row in matches.exact {
+        exact.push(format!(
+            "{:name_padding$}  {:version_padding$}  {}",
+            row.name, row.version, row.description
+        ));
+    }
+
+    for row in matches.direct {
+        direct.push(format!(
+            "{:name_padding$}  {:version_padding$}  {}",
+            row.name, row.version, row.description
+        ));
+    }
+
+    for row in matches.indirect {
+        indirect.push(format!(
+            "{:name_padding$}  {:version_padding$}  {}",
+            row.name, row.version, row.description
+        ));
+    }
+
+    if flip {
+        exact.reverse();
+        direct.reverse();
+        indirect.reverse();
+    }
+
+    let matcher = grep::regex::RegexMatcherBuilder::new()
+        .case_insensitive(ignore_case)
+        .build(search_term)
+        .unwrap();
+
+    let exact_color: UserColorSpec = "match:fg:magenta".parse().unwrap();
+    let direct_color: UserColorSpec = "match:fg:blue".parse().unwrap();
+    let indirect_color: UserColorSpec = "match:fg:green".parse().unwrap();
+    let bold: UserColorSpec = "match:style:bold".parse().unwrap();
+    let exact_color_specs = grep::printer::ColorSpecs::new(&[exact_color, bold.clone()]);
+    let direct_color_specs = grep::printer::ColorSpecs::new(&[direct_color, bold.clone()]);
+    let indirect_color_specs = grep::printer::ColorSpecs::new(&[indirect_color, bold.clone()]);
+
+    match flip {
+        true => {
+            print_matches(
+                indirect_color_specs,
+                color_choice,
+                indirect.join("\n"),
+                matcher.clone(),
+            );
+            if separate {
+                println!();
+            }
+            print_matches(
+                direct_color_specs,
+                color_choice,
+                direct.join("\n"),
+                matcher.clone(),
+            );
+            if separate {
+                println!();
+            }
+            print_matches(
+                exact_color_specs,
+                color_choice,
+                exact.join("\n"),
+                matcher.clone(),
+            );
+        }
+        false => {
+            print_matches(
+                exact_color_specs,
+                color_choice,
+                exact.join("\n"),
+                matcher.clone(),
+            );
+            if separate {
+                println!();
+            }
+            print_matches(
+                direct_color_specs,
+                color_choice,
+                direct.join("\n"),
+                matcher.clone(),
+            );
+            if separate {
+                println!();
+            }
+            print_matches(
+                indirect_color_specs,
+                color_choice,
+                indirect.join("\n"),
+                matcher.clone(),
+            );
+        }
+    }
+    output
 }
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-
-    // Set a supports-color override based on the variable passed in.
-    match cli.color {
-        ColorChoice::Always => owo_colors::set_override(true),
-        ColorChoice::Auto => {}
-        ColorChoice::Never => owo_colors::set_override(false),
-    }
 
     let log_level = match cli.debug {
         0 => log::LevelFilter::Error,
@@ -199,24 +396,35 @@ fn main() -> ExitCode {
         std::process::exit(1)
     }
 
-    if cli.show_config_options {
-        print_formatted_option_help_text(ENV_VAR_OPTIONS);
-        return ExitCode::SUCCESS
+    log::trace!("Log level set to: {}", log_level);
+
+    // Set a supports-color override based on the variable passed in.
+    let mut color_choice = match cli.color {
+        ColorChoice::Always => {
+            log::trace!("ColorChoice set to Always");
+            TermColorChoice::Always
+        }
+        ColorChoice::Auto => {
+            log::trace!("ColorChoice request Auto");
+            if std::io::stdout().is_terminal() {
+                log::trace!("Running in terminal, ColorChoice set to Auto");
+                TermColorChoice::Auto
+            } else {
+                log::warn!("Not running in terminal, ColorCoice forced to Never");
+                TermColorChoice::Never
+            }
+        }
+        ColorChoice::Never => {
+            log::trace!("ColorChoice set to Never");
+            TermColorChoice::Never
+        }
     };
 
-    println!("color: {:?}", cli.color);
-    println!("columns: {:?}", cli.columns);
-    println!("debug: {:?}", cli.debug);
-    println!("flip: {:?}", cli.flip);
-    println!("refresh: {:?}", cli.refresh);
-    println!("separate: {:?}", cli.separate);
-    println!("show-config-options: {:?}", cli.show_config_options);
-
-    log::trace!("trace");
-    log::debug!("debug");
-    log::info!("information");
-    log::warn!("warning");
-    log::error!("error");
+    if cli.show_config_options {
+        log::trace!("Show config options and exit");
+        print_formatted_option_help_text(ENV_VAR_OPTIONS, color_choice);
+        return ExitCode::SUCCESS;
+    };
 
     let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
 
@@ -224,16 +432,21 @@ fn main() -> ExitCode {
         Ok(content) => content,
         Err(err) => {
             log::error!("Can't open file {file_path}: {err}");
-            return ExitCode::FAILURE
+            return ExitCode::FAILURE;
         }
     };
 
-    let case_insensitive = false;
-    let matches = get_matches("neovim", &content, case_insensitive);
+    let raw_matches = get_matches(&cli.search_term.clone().unwrap(), &content, cli.ignore_case);
 
-    println!("{matches}");
+    let sorted_matches = sort_matches(
+        raw_matches,
+        &cli.search_term.unwrap(),
+        cli.columns,
+        cli.flip,
+        cli.ignore_case,
+        color_choice,
+        cli.separate,
+    );
 
-    let sorted_matches = sort_matches(&matches, cli.columns, cli.flip);
-
-    return ExitCode::SUCCESS
+    return ExitCode::SUCCESS;
 }

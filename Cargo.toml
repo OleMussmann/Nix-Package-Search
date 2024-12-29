@@ -12,5 +12,4 @@ clap = { version = "4.5.23", features = ["derive"] }
 env_logger = "0.11.6"
 grep = "0.3.2"
 log = "0.4.22"
-owo-colors = { version = "4.1.0", features = ["supports-colors"] }
 termcolor = "1.4.1"
