@@ -5,11 +5,10 @@ use grep;
 use grep::printer::UserColorSpec;
 use grep::regex::RegexMatcher;
 use log;
-use std::io;
 use std::io::{IsTerminal, Write};
 use std::{fs, process::ExitCode};
 use termcolor::ColorChoice as TermColorChoice;
-use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
+use termcolor::{ColorSpec, StandardStream, WriteColor};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -145,7 +144,7 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
-fn print_formatted_option_help_text(help_text: &str, color_choice: TermColorChoice) {
+fn print_formatted_option_help_text(help_text: &str, color_choice: TermColorChoice) -> Result<(), Box<dyn std::error::Error>> {
     let mut header = false;
 
     let mut stdout = StandardStream::stdout(color_choice);
@@ -157,14 +156,15 @@ fn print_formatted_option_help_text(help_text: &str, color_choice: TermColorChoi
             continue;
         }
         if header {
-            stdout.set_color(ColorSpec::new().set_bold(true));
-            writeln!(stdout, "{}", line);
-            stdout.set_color(ColorSpec::new().set_bold(false));
+            stdout.set_color(ColorSpec::new().set_bold(true))?;
+            writeln!(stdout, "{}", line)?;
+            stdout.set_color(ColorSpec::new().set_bold(false))?;
             header = false;
         } else {
             println!("{}", line);
         }
     }
+    Ok(())
 }
 
 fn get_matches(search_term: &str, content: &str, ignore_case: bool) -> String {
@@ -212,7 +212,7 @@ fn print_matches(
     color_specs: grep::printer::ColorSpecs,
     color_choice: TermColorChoice,
     joined_matches: String,
-    matcher: RegexMatcher,
+    matcher: &RegexMatcher,
 ) {
     let mut printer = grep::printer::StandardBuilder::new()
         .color_specs(color_specs)
@@ -220,8 +220,17 @@ fn print_matches(
     grep::searcher::SearcherBuilder::new()
         .line_number(false)
         .build()
-        .search_slice(&matcher, &joined_matches.as_bytes(), printer.sink(&matcher))
+        .search_slice(matcher, &joined_matches.as_bytes(), printer.sink(&matcher))
         .unwrap();
+}
+
+fn assemble_string (row: Row, columns: &ColumnsChoice, name_padding: usize, version_padding: usize) -> String {
+    match columns {
+        ColumnsChoice::All => format!("{:name_padding$}  {:version_padding$}  {}", row.name, row.version, row.description),
+        ColumnsChoice::Version => format!("{:name_padding$}  {}", row.name, row.version),
+        ColumnsChoice::Description => format!("{:name_padding$}  {}", row.name, row.description),
+        ColumnsChoice::None => format!("{}", row.name),
+    }
 }
 
 fn sort_matches<'a>(
@@ -232,7 +241,7 @@ fn sort_matches<'a>(
     ignore_case: bool,
     color_choice: TermColorChoice,
     separate: bool,
-) -> Vec<String> {
+) {
     let mut matches = Matches {
         exact: vec![],
         direct: vec![],
@@ -279,27 +288,17 @@ fn sort_matches<'a>(
     let mut exact: Vec<String> = vec![];
     let mut direct: Vec<String> = vec![];
     let mut indirect: Vec<String> = vec![];
-    let mut output: Vec<String> = vec![];
 
     for row in matches.exact {
-        exact.push(format!(
-            "{:name_padding$}  {:version_padding$}  {}",
-            row.name, row.version, row.description
-        ));
+        exact.push(assemble_string(row, &columns, name_padding, version_padding));
     }
 
     for row in matches.direct {
-        direct.push(format!(
-            "{:name_padding$}  {:version_padding$}  {}",
-            row.name, row.version, row.description
-        ));
+        direct.push(assemble_string(row, &columns, name_padding, version_padding));
     }
 
     for row in matches.indirect {
-        indirect.push(format!(
-            "{:name_padding$}  {:version_padding$}  {}",
-            row.name, row.version, row.description
-        ));
+        indirect.push(assemble_string(row, &columns, name_padding, version_padding));
     }
 
     if flip {
@@ -310,16 +309,22 @@ fn sort_matches<'a>(
 
     let matcher = grep::regex::RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
-        .build(search_term)
+        // Search for "search_term" OR any first character "^.", so we don't drop lines during the
+        // coloring. A bit hacky. Not that we would want that, but I have no clue why the first
+        // char char is not colored as a regex match as well. Magic?
+        // TODO make less hacky
+        .build(&format!("({}|^.)", search_term))
         .unwrap();
 
     let exact_color: UserColorSpec = "match:fg:magenta".parse().unwrap();
     let direct_color: UserColorSpec = "match:fg:blue".parse().unwrap();
     let indirect_color: UserColorSpec = "match:fg:green".parse().unwrap();
-    let bold: UserColorSpec = "match:style:bold".parse().unwrap();
-    let exact_color_specs = grep::printer::ColorSpecs::new(&[exact_color, bold.clone()]);
-    let direct_color_specs = grep::printer::ColorSpecs::new(&[direct_color, bold.clone()]);
-    let indirect_color_specs = grep::printer::ColorSpecs::new(&[indirect_color, bold.clone()]);
+    let exact_style: UserColorSpec = "match:style:bold".parse().unwrap();
+    let direct_style: UserColorSpec = "match:style:bold".parse().unwrap();
+    let indirect_style: UserColorSpec = "match:style:bold".parse().unwrap();
+    let exact_color_specs = grep::printer::ColorSpecs::new(&[exact_color, exact_style]);
+    let direct_color_specs = grep::printer::ColorSpecs::new(&[direct_color, direct_style]);
+    let indirect_color_specs = grep::printer::ColorSpecs::new(&[indirect_color, indirect_style]);
 
     match flip {
         true => {
@@ -327,7 +332,7 @@ fn sort_matches<'a>(
                 indirect_color_specs,
                 color_choice,
                 indirect.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
             if separate {
                 println!();
@@ -336,7 +341,7 @@ fn sort_matches<'a>(
                 direct_color_specs,
                 color_choice,
                 direct.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
             if separate {
                 println!();
@@ -345,7 +350,7 @@ fn sort_matches<'a>(
                 exact_color_specs,
                 color_choice,
                 exact.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
         }
         false => {
@@ -353,7 +358,7 @@ fn sort_matches<'a>(
                 exact_color_specs,
                 color_choice,
                 exact.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
             if separate {
                 println!();
@@ -362,7 +367,7 @@ fn sort_matches<'a>(
                 direct_color_specs,
                 color_choice,
                 direct.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
             if separate {
                 println!();
@@ -371,11 +376,10 @@ fn sort_matches<'a>(
                 indirect_color_specs,
                 color_choice,
                 indirect.join("\n"),
-                matcher.clone(),
+                &matcher,
             );
         }
     }
-    output
 }
 
 fn main() -> ExitCode {
@@ -399,7 +403,7 @@ fn main() -> ExitCode {
     log::trace!("Log level set to: {}", log_level);
 
     // Set a supports-color override based on the variable passed in.
-    let mut color_choice = match cli.color {
+    let color_choice = match cli.color {
         ColorChoice::Always => {
             log::trace!("ColorChoice set to Always");
             TermColorChoice::Always
@@ -422,8 +426,14 @@ fn main() -> ExitCode {
 
     if cli.show_config_options {
         log::trace!("Show config options and exit");
-        print_formatted_option_help_text(ENV_VAR_OPTIONS, color_choice);
-        return ExitCode::SUCCESS;
+        match print_formatted_option_help_text(ENV_VAR_OPTIONS, color_choice) {
+            Ok(_) => (),
+            Err(err) => {
+                log::error!("Can't show config options: {}", err);
+                return ExitCode::FAILURE
+            },
+        };
+        return ExitCode::SUCCESS
     };
 
     let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
@@ -438,7 +448,7 @@ fn main() -> ExitCode {
 
     let raw_matches = get_matches(&cli.search_term.clone().unwrap(), &content, cli.ignore_case);
 
-    let sorted_matches = sort_matches(
+    sort_matches(
         raw_matches,
         &cli.search_term.unwrap(),
         cli.columns,
@@ -448,5 +458,5 @@ fn main() -> ExitCode {
         cli.separate,
     );
 
-    return ExitCode::SUCCESS;
+    return ExitCode::SUCCESS
 }
