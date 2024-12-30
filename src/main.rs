@@ -29,61 +29,137 @@ struct Cli {
     // require_equals: force `--option=val` syntax
     // env: read env var if flag not present
     // takes_values: accept values from command line
-
     /// Highlight search matches in color
-    #[arg(short, long="color", visible_alias="colour", default_value_t = ColorChoice::Auto, env="NIX_PACKAGE_SEARCH_COLOR_MODE")]
+    #[arg(
+        short,
+        long="color",
+        visible_alias="colour",
+        default_value_t = ColorChoice::Auto,
+        env="NIX_PACKAGE_SEARCH_COLOR_MODE",
+        )]
     color: ColorChoice,
 
     /// Choose columns to show
-    #[arg(short='C', long="columns", default_value_t = ColumnsChoice::All, value_enum, env = "NIX_PACKAGE_SEARCH_COLUMNS")]
+    #[arg(
+        short='C',
+        long="columns",
+        default_value_t = ColumnsChoice::All,
+        value_enum,
+        env = "NIX_PACKAGE_SEARCH_COLUMNS",
+    )]
     columns: ColumnsChoice,
 
     /// Turn debugging information on
     ///
     /// Use up to four times for increased verbosity
-    #[arg(short, long, action = clap::ArgAction::Count)]
+    #[arg(
+        short,
+        long,
+        action = clap::ArgAction::Count,
+    )]
     debug: u8,
 
     /// Flip the order of matches and sorting
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, require_equals=true, action = clap::ArgAction::Set, env = "NIX_PACKAGE_SEARCH_FLIP")]
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        default_missing_value = "true",
+        num_args=0..=1,
+        require_equals=true,
+        action = clap::ArgAction::Set,
+        env = "NIX_PACKAGE_SEARCH_FLIP",
+    )]
     flip: bool,
 
     /// Ignore case
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set, env = "NIX_PACKAGE_SEARCH_IGNORE_CASE")]
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        default_missing_value = "true",
+        num_args=0..=1,
+        action = clap::ArgAction::Set,
+        env = "NIX_PACKAGE_SEARCH_IGNORE_CASE",
+    )]
     ignore_case: bool,
 
     /// Refresh package cache and exit
-    #[arg(short, long)]
+    #[arg(
+        short,
+        long,
+    )]
     refresh: bool,
 
     /// Separate match types with a newline
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_PRINT_SEPARATOR")]
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        default_missing_value = "true",
+        num_args=0..=1,
+        action = clap::ArgAction::Set,
+        env="NIX_PACKAGE_SEARCH_PRINT_SEPARATOR",
+    )]
     separate: bool,
 
     /// Search for any SEARCH_TERM in package names, description or versions
-    #[arg(required_unless_present_any = ["show_config_options", "refresh"])]
+    #[arg(
+        required_unless_present_any = ["show_config_options", "refresh"],
+    )]
     search_term: Option<String>,
 
     /// Show environment variable configuration options and exit
-    #[arg(long)]
+    #[arg(
+        long,
+    )]
     show_config_options: bool,
 
     // hidden vars, to be set via env vars
-
     /// Cache lives here
-    #[arg(long, default_value = "~/.nix-package-search/", env = "NIX_PACKAGE_SEARCH_FOLDER", require_equals = true, hide = true)]
+    #[arg(
+        long,
+        default_value = "~/.nix-package-search/",
+        env = "NIX_PACKAGE_SEARCH_FOLDER",
+        require_equals = true,
+        hide = true,
+    )]
     search_folder: path::PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
-    #[arg(long, default_value_t = Colors::Magenta, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_EXACT_COLOR", hide = true)]
+    #[arg(
+        long,
+        default_value_t = Colors::Magenta,
+        value_enum,
+        require_equals=true,
+        action = clap::ArgAction::Set,
+        env="NIX_PACKAGE_SEARCH_EXACT_COLOR",
+        hide = true,
+    )]
     exact_color: Colors,
 
     /// Color of DIRECT matches, match SEARCH_TERMbar
-    #[arg(long, default_value_t = Colors::Blue, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_DIRECT_COLOR", hide = true)]
+    #[arg(
+        long,
+        default_value_t = Colors::Blue,
+        value_enum,
+        require_equals=true,
+        action = clap::ArgAction::Set,
+        env="NIX_PACKAGE_SEARCH_DIRECT_COLOR",
+        hide = true,
+    )]
     direct_color: Colors,
 
     /// Color of DIRECT matches, match fooSEARCH_TERMbar (or match other columns)
-    #[arg(long, default_value_t = Colors::Green, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_INDIRECT_COLOR", hide = true)]
+    #[arg(
+        long,
+        default_value_t = Colors::Green,
+        value_enum,
+        require_equals=true,
+        action = clap::ArgAction::Set,
+        env="NIX_PACKAGE_SEARCH_INDIRECT_COLOR",
+        hide = true,
+    )]
     indirect_color: Colors,
 }
 
@@ -177,7 +253,10 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
-fn print_formatted_option_help_text(help_text: &str, color_choice: TermColorChoice) -> Result<(), Box<dyn std::error::Error>> {
+fn print_formatted_option_help_text(
+    help_text: &str,
+    color_choice: TermColorChoice,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut header = false;
 
     let mut stdout = StandardStream::stdout(color_choice);
@@ -257,20 +336,24 @@ fn print_matches(
         .unwrap();
 }
 
-fn assemble_string (row: Row, columns: &ColumnsChoice, name_padding: usize, version_padding: usize) -> String {
+fn assemble_string(
+    row: Row,
+    columns: &ColumnsChoice,
+    name_padding: usize,
+    version_padding: usize,
+) -> String {
     match columns {
-        ColumnsChoice::All => format!("{:name_padding$}  {:version_padding$}  {}", row.name, row.version, row.description),
+        ColumnsChoice::All => format!(
+            "{:name_padding$}  {:version_padding$}  {}",
+            row.name, row.version, row.description
+        ),
         ColumnsChoice::Version => format!("{:name_padding$}  {}", row.name, row.version),
         ColumnsChoice::Description => format!("{:name_padding$}  {}", row.name, row.description),
         ColumnsChoice::None => format!("{}", row.name),
     }
 }
 
-fn sort_matches<'a>(
-    raw_matches: String,
-    color_choice: TermColorChoice,
-    cli: Cli,
-) {
+fn sort_matches<'a>(raw_matches: String, color_choice: TermColorChoice, cli: Cli) {
     let search_term = &cli.search_term.unwrap();
     let columns = cli.columns;
     let flip = cli.flip;
@@ -325,15 +408,30 @@ fn sort_matches<'a>(
     let mut indirect: Vec<String> = vec![];
 
     for row in matches.exact {
-        exact.push(assemble_string(row, &columns, name_padding, version_padding));
+        exact.push(assemble_string(
+            row,
+            &columns,
+            name_padding,
+            version_padding,
+        ));
     }
 
     for row in matches.direct {
-        direct.push(assemble_string(row, &columns, name_padding, version_padding));
+        direct.push(assemble_string(
+            row,
+            &columns,
+            name_padding,
+            version_padding,
+        ));
     }
 
     for row in matches.indirect {
-        indirect.push(assemble_string(row, &columns, name_padding, version_padding));
+        indirect.push(assemble_string(
+            row,
+            &columns,
+            name_padding,
+            version_padding,
+        ));
     }
 
     if flip {
@@ -353,7 +451,9 @@ fn sort_matches<'a>(
 
     let exact_color: UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
     let direct_color: UserColorSpec = format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
-    let indirect_color: UserColorSpec = format!("match:fg:{:?}", cli.indirect_color).parse().unwrap();
+    let indirect_color: UserColorSpec = format!("match:fg:{:?}", cli.indirect_color)
+        .parse()
+        .unwrap();
     let exact_style: UserColorSpec = "match:style:bold".parse().unwrap();
     let direct_style: UserColorSpec = "match:style:bold".parse().unwrap();
     let indirect_style: UserColorSpec = "match:style:bold".parse().unwrap();
@@ -381,20 +481,10 @@ fn sort_matches<'a>(
             if separate {
                 println!();
             }
-            print_matches(
-                exact_color_specs,
-                color_choice,
-                exact.join("\n"),
-                &matcher,
-            );
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher);
         }
         false => {
-            print_matches(
-                exact_color_specs,
-                color_choice,
-                exact.join("\n"),
-                &matcher,
-            );
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher);
             if separate {
                 println!();
             }
@@ -468,10 +558,10 @@ fn main() -> ExitCode {
             Ok(_) => (),
             Err(err) => {
                 log::error!("Can't show config options: {}", err);
-                return ExitCode::FAILURE
-            },
+                return ExitCode::FAILURE;
+            }
         };
-        return ExitCode::SUCCESS
+        return ExitCode::SUCCESS;
     };
 
     let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
@@ -486,11 +576,7 @@ fn main() -> ExitCode {
 
     let raw_matches = get_matches(&cli.search_term.clone().unwrap(), &content, cli.ignore_case);
 
-    sort_matches(
-        raw_matches,
-        color_choice,
-        cli,
-    );
+    sort_matches(raw_matches, color_choice, cli);
 
-    return ExitCode::SUCCESS
+    return ExitCode::SUCCESS;
 }
