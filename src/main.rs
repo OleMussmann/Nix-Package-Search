@@ -6,10 +6,9 @@ use grep::printer::UserColorSpec;
 use grep::regex::RegexMatcher;
 use log;
 use std::io::{IsTerminal, Write};
-use std::{ffi, fs, path, process::ExitCode};
-use std::str::FromStr;
+use std::{fs, path, process::ExitCode};
 use termcolor::ColorChoice as TermColorChoice;
-use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
+use termcolor::{ColorSpec, StandardStream, WriteColor};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -168,14 +167,6 @@ enum Colors {
     Magenta,
     Yellow,
     White,
-//    Black: termcolor::Color::Black,
-//    Blue: termcolor::Color::Blue,
-//    Green: termcolor::Color::Green,
-//    Red: termcolor::Color::Red,
-//    Cyan: termcolor::Color::Cyan,
-//    Magenta: termcolor::Color::Magenta,
-//    Yellow: termcolor::Color::Yellow,
-//    White: termcolor::Color::White,
 }
 
 fn styles() -> Styles {
@@ -424,20 +415,6 @@ fn sort_matches<'a>(
             );
         }
     }
-}
-
-#[derive(Debug)]
-struct Options<'b> {
-    flip: bool,
-    search_folder: &'b path::Path,
-    cache_file: ffi::OsString,
-    show_package_version: bool,
-    show_package_description: bool,
-    exact_color: termcolor::Color,
-    direct_color: termcolor::Color,
-    indirect_color: termcolor::Color,
-    color_mode: ColorChoice,
-    print_separator: bool,
 }
 
 fn main() -> ExitCode {
