@@ -6,9 +6,10 @@ use grep::printer::UserColorSpec;
 use grep::regex::RegexMatcher;
 use log;
 use std::io::{IsTerminal, Write};
-use std::{fs, process::ExitCode};
+use std::{ffi, fs, path, process::ExitCode};
+use std::str::FromStr;
 use termcolor::ColorChoice as TermColorChoice;
-use termcolor::{ColorSpec, StandardStream, WriteColor};
+use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -18,17 +19,24 @@ use termcolor::{ColorSpec, StandardStream, WriteColor};
 /// Matches are sorted by type. Show 'exact' matches first, then 'direct' matches, and finally 'indirect' matches.
 ///
 ///   exact     SEARCH_TERM
-///   direct    SEARCH_TERM-bar
-///   indirect  foo-SEARCH_TERM-bar (or match other columns)
+///   direct    SEARCH_TERMbar
+///   indirect  fooSEARCH_TERMbar (or match other columns)
 #[derive(Parser, Debug)]
 #[command(author, version, verbatim_doc_comment, styles=styles())]
 struct Cli {
+    // default_value_t: value if flag (or env var) not present
+    // default_missing_value: value if flag is present, but has no value
+    //                        needs .num_args(0..N) and .require_equals(true)
+    // require_equals: force `--option=val` syntax
+    // env: read env var if flag not present
+    // takes_values: accept values from command line
+
     /// Highlight search matches in color
-    #[arg(short, long="color", visible_alias="colour", default_value_t = ColorChoice::Auto)]
+    #[arg(short, long="color", visible_alias="colour", default_value_t = ColorChoice::Auto, env="NIX_PACKAGE_SEARCH_COLOR_MODE")]
     color: ColorChoice,
 
     /// Choose columns to show
-    #[arg(short='C', long="columns", default_value_t = ColumnsChoice::All, value_enum)]
+    #[arg(short='C', long="columns", default_value_t = ColumnsChoice::All, value_enum, env = "NIX_PACKAGE_SEARCH_COLUMNS")]
     columns: ColumnsChoice,
 
     /// Turn debugging information on
@@ -38,11 +46,11 @@ struct Cli {
     debug: u8,
 
     /// Flip the order of matches and sorting
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
+    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, require_equals=true, action = clap::ArgAction::Set, env = "NIX_PACKAGE_SEARCH_FLIP")]
     flip: bool,
 
     /// Ignore case
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
+    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set, env = "NIX_PACKAGE_SEARCH_IGNORE_CASE")]
     ignore_case: bool,
 
     /// Refresh package cache and exit
@@ -50,7 +58,7 @@ struct Cli {
     refresh: bool,
 
     /// Separate match types with a newline
-    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set)]
+    #[arg(short, long, default_value_t = false, default_missing_value = "true", num_args=0..=1, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_PRINT_SEPARATOR")]
     separate: bool,
 
     /// Search for any SEARCH_TERM in package names, description or versions
@@ -60,6 +68,24 @@ struct Cli {
     /// Show environment variable configuration options and exit
     #[arg(long)]
     show_config_options: bool,
+
+    // hidden vars, to be set via env vars
+
+    /// Cache lives here
+    #[arg(long, default_value = "~/.nix-package-search/", env = "NIX_PACKAGE_SEARCH_FOLDER", require_equals = true, hide = true)]
+    search_folder: path::PathBuf,
+
+    /// Color of EXACT matches, match SEARCH_TERM
+    #[arg(long, default_value_t = Colors::Magenta, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_EXACT_COLOR", hide = true)]
+    exact_color: Colors,
+
+    /// Color of DIRECT matches, match SEARCH_TERMbar
+    #[arg(long, default_value_t = Colors::Blue, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_DIRECT_COLOR", hide = true)]
+    direct_color: Colors,
+
+    /// Color of DIRECT matches, match fooSEARCH_TERMbar (or match other columns)
+    #[arg(long, default_value_t = Colors::Green, value_enum, require_equals=true, action = clap::ArgAction::Set, env="NIX_PACKAGE_SEARCH_INDIRECT_COLOR", hide = true)]
+    indirect_color: Colors,
 }
 
 static ENV_VAR_OPTIONS: &str = "
@@ -84,28 +110,24 @@ NIX_PACKAGE_SEARCH_CACHE_FILE
     possible values: filename
     default: nps.cache
 
-NIX_PACKAGE_SEARCH_SHOW_PACKAGE_VERSION
-  Show the PACKAGE_VERSION column
-    possible values: true, false
-    default: true
-
-NIX_PACKAGE_SEARCH_SHOW_PACKAGE_DESCRIPTION
-  Show the PACKAGE_DESCRIPTION column
-    possible values: true, false
-    default: true
+NIX_PACKAGE_SEARCH_COLUMNS
+  Choose columns to show: PACKAGE_NAME plus any of PACKAGE_VERSION or
+  PACKAGE_DESCRIPTION
+    possible values: all, none, version, description
+    default: all
 
 NIX_PACKAGE_SEARCH_EXACT_COLOR
-  Color of EXACT matches, match PACKAGE_NAME
+  Color of EXACT matches, match SEARCH_TERM
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: magenta
 
 NIX_PACKAGE_SEARCH_DIRECT_COLOR
-  Color of DIRECT matches, match PACKAGE_NAME-bar
+  Color of DIRECT matches, match SEARCH_TERMbar
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: blue
 
 NIX_PACKAGE_SEARCH_INDIRECT_COLOR
-  Color of INDIRECT matches, match foo-PACKAGE_NAME-bar
+  Color of INDIRECT matches, match fooSEARCH_TERMbar
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: green
 
@@ -134,6 +156,26 @@ enum ColumnsChoice {
     Version,
     /// Also show PACKAGE_DESCRIPTION
     Description,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum Colors {
+    Black,
+    Blue,
+    Green,
+    Red,
+    Cyan,
+    Magenta,
+    Yellow,
+    White,
+//    Black: termcolor::Color::Black,
+//    Blue: termcolor::Color::Blue,
+//    Green: termcolor::Color::Green,
+//    Red: termcolor::Color::Red,
+//    Cyan: termcolor::Color::Cyan,
+//    Magenta: termcolor::Color::Magenta,
+//    Yellow: termcolor::Color::Yellow,
+//    White: termcolor::Color::White,
 }
 
 fn styles() -> Styles {
@@ -235,13 +277,15 @@ fn assemble_string (row: Row, columns: &ColumnsChoice, name_padding: usize, vers
 
 fn sort_matches<'a>(
     raw_matches: String,
-    search_term: &str,
-    columns: ColumnsChoice,
-    flip: bool,
-    ignore_case: bool,
     color_choice: TermColorChoice,
-    separate: bool,
+    cli: Cli,
 ) {
+    let search_term = &cli.search_term.unwrap();
+    let columns = cli.columns;
+    let flip = cli.flip;
+    let ignore_case = cli.ignore_case;
+    let separate = cli.separate;
+
     let mut matches = Matches {
         exact: vec![],
         direct: vec![],
@@ -316,9 +360,9 @@ fn sort_matches<'a>(
         .build(&format!("({}|^.)", search_term))
         .unwrap();
 
-    let exact_color: UserColorSpec = "match:fg:magenta".parse().unwrap();
-    let direct_color: UserColorSpec = "match:fg:blue".parse().unwrap();
-    let indirect_color: UserColorSpec = "match:fg:green".parse().unwrap();
+    let exact_color: UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
+    let direct_color: UserColorSpec = format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
+    let indirect_color: UserColorSpec = format!("match:fg:{:?}", cli.indirect_color).parse().unwrap();
     let exact_style: UserColorSpec = "match:style:bold".parse().unwrap();
     let direct_style: UserColorSpec = "match:style:bold".parse().unwrap();
     let indirect_style: UserColorSpec = "match:style:bold".parse().unwrap();
@@ -382,6 +426,20 @@ fn sort_matches<'a>(
     }
 }
 
+#[derive(Debug)]
+struct Options<'b> {
+    flip: bool,
+    search_folder: &'b path::Path,
+    cache_file: ffi::OsString,
+    show_package_version: bool,
+    show_package_description: bool,
+    exact_color: termcolor::Color,
+    direct_color: termcolor::Color,
+    indirect_color: termcolor::Color,
+    color_mode: ColorChoice,
+    print_separator: bool,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -401,6 +459,9 @@ fn main() -> ExitCode {
     }
 
     log::trace!("Log level set to: {}", log_level);
+
+    //dbg!(cli);
+    //return ExitCode::SUCCESS;
 
     // Set a supports-color override based on the variable passed in.
     let color_choice = match cli.color {
@@ -450,12 +511,8 @@ fn main() -> ExitCode {
 
     sort_matches(
         raw_matches,
-        &cli.search_term.unwrap(),
-        cli.columns,
-        cli.flip,
-        cli.ignore_case,
         color_choice,
-        cli.separate,
+        cli,
     );
 
     return ExitCode::SUCCESS
