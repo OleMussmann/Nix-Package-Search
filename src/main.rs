@@ -1,14 +1,10 @@
+use clap::Parser;
 use clap::builder::styling::{AnsiColor, Effects, Styles};
-use clap::{ColorChoice, Parser, ValueEnum};
 use env_logger;
-use grep;
-use grep::printer::UserColorSpec;
-use grep::regex::RegexMatcher;
+use grep::{printer, regex, searcher};
 use log;
-use std::io::{IsTerminal, Write};
-use std::{fs, path, process::ExitCode};
-use termcolor::ColorChoice as TermColorChoice;
-use termcolor::{ColorSpec, StandardStream, WriteColor};
+use std::{io::{IsTerminal, Write}, process::ExitCode};
+use termcolor::{WriteColor};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -20,7 +16,7 @@ use termcolor::{ColorSpec, StandardStream, WriteColor};
 ///   exact     SEARCH_TERM
 ///   direct    SEARCH_TERMbar
 ///   indirect  fooSEARCH_TERMbar (or match other columns)
-#[derive(Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 #[command(author, version, verbatim_doc_comment, styles=styles())]
 struct Cli {
     // default_value_t: value if flag (or env var) not present
@@ -36,11 +32,11 @@ struct Cli {
         long = "color",
         require_equals = true,
         visible_alias = "colour",
-        default_value_t = ColorChoice::Auto,
-        default_missing_value = "ColorChoice::Auto",
+        default_value_t = clap::ColorChoice::Auto,
+        default_missing_value = "clap::ColorChoice::Auto",
         env = "NIX_PACKAGE_SEARCH_COLOR_MODE",
         )]
-    color: ColorChoice,
+    color: clap::ColorChoice,
 
     /// Choose columns to show
     #[arg(
@@ -131,7 +127,7 @@ struct Cli {
         default_value = "~/.nix-package-search/",
         env = "NIX_PACKAGE_SEARCH_FOLDER",
     )]
-    search_folder: path::PathBuf,
+    search_folder: std::path::PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
@@ -228,7 +224,7 @@ NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
 ";
 
 /// Column name options
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Debug, clap::ValueEnum)]
 enum ColumnsChoice {
     /// Show all columns
     All,
@@ -240,7 +236,7 @@ enum ColumnsChoice {
     Description,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, clap::ValueEnum)]
 enum Colors {
     Black,
     Blue,
@@ -262,11 +258,11 @@ fn styles() -> Styles {
 
 fn print_formatted_option_help_text(
     help_text: &str,
-    color_choice: TermColorChoice,
+    color_choice: termcolor::ColorChoice,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut header = false;
 
-    let mut stdout = StandardStream::stdout(color_choice);
+    let mut stdout = termcolor::StandardStream::stdout(color_choice);
 
     for line in help_text.lines() {
         if line.is_empty() {
@@ -275,9 +271,9 @@ fn print_formatted_option_help_text(
             continue;
         }
         if header {
-            stdout.set_color(ColorSpec::new().set_bold(true))?;
+            stdout.set_color(termcolor::ColorSpec::new().set_bold(true))?;
             writeln!(stdout, "{}", line)?;
-            stdout.set_color(ColorSpec::new().set_bold(false))?;
+            stdout.set_color(termcolor::ColorSpec::new().set_bold(false))?;
             header = false;
         } else {
             println!("{}", line);
@@ -287,12 +283,12 @@ fn print_formatted_option_help_text(
 }
 
 fn get_matches(search_term: &str, content: &str, ignore_case: bool) -> String {
-    let matcher = grep::regex::RegexMatcherBuilder::new()
+    let matcher = regex::RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
         .build(search_term)
         .unwrap();
-    let mut printer = grep::printer::Standard::new_no_color(vec![]);
-    grep::searcher::SearcherBuilder::new()
+    let mut printer = printer::Standard::new_no_color(vec![]);
+    searcher::SearcherBuilder::new()
         .line_number(false)
         .build()
         .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))
@@ -328,15 +324,15 @@ struct Matches {
 }
 
 fn print_matches(
-    color_specs: grep::printer::ColorSpecs,
-    color_choice: TermColorChoice,
+    color_specs: printer::ColorSpecs,
+    color_choice: termcolor::ColorChoice,
     joined_matches: String,
-    matcher: &RegexMatcher,
+    matcher: &regex::RegexMatcher,
 ) {
-    let mut printer = grep::printer::StandardBuilder::new()
+    let mut printer = printer::StandardBuilder::new()
         .color_specs(color_specs)
         .build(termcolor::StandardStream::stdout(color_choice));
-    grep::searcher::SearcherBuilder::new()
+    searcher::SearcherBuilder::new()
         .line_number(false)
         .build()
         .search_slice(matcher, &joined_matches.as_bytes(), printer.sink(&matcher))
@@ -360,7 +356,7 @@ fn assemble_string(
     }
 }
 
-fn sort_matches<'a>(raw_matches: String, color_choice: TermColorChoice, cli: Cli) {
+fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, cli: Cli) {
     let search_term = &cli.search_term.unwrap();
     let columns = cli.columns;
     let flip = cli.flip;
@@ -447,7 +443,7 @@ fn sort_matches<'a>(raw_matches: String, color_choice: TermColorChoice, cli: Cli
         indirect.reverse();
     }
 
-    let matcher = grep::regex::RegexMatcherBuilder::new()
+    let matcher = regex::RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
         // Search for "search_term" OR any first character "^.", so we don't drop lines during the
         // coloring. A bit hacky. Not that we would want that, but I have no clue why the first
@@ -456,17 +452,17 @@ fn sort_matches<'a>(raw_matches: String, color_choice: TermColorChoice, cli: Cli
         .build(&format!("({}|^.)", search_term))
         .unwrap();
 
-    let exact_color: UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
-    let direct_color: UserColorSpec = format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
-    let indirect_color: UserColorSpec = format!("match:fg:{:?}", cli.indirect_color)
+    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
+    let direct_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
+    let indirect_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.indirect_color)
         .parse()
         .unwrap();
-    let exact_style: UserColorSpec = "match:style:bold".parse().unwrap();
-    let direct_style: UserColorSpec = "match:style:bold".parse().unwrap();
-    let indirect_style: UserColorSpec = "match:style:bold".parse().unwrap();
-    let exact_color_specs = grep::printer::ColorSpecs::new(&[exact_color, exact_style]);
-    let direct_color_specs = grep::printer::ColorSpecs::new(&[direct_color, direct_style]);
-    let indirect_color_specs = grep::printer::ColorSpecs::new(&[indirect_color, indirect_style]);
+    let exact_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
+    let direct_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
+    let indirect_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
+    let exact_color_specs = printer::ColorSpecs::new(&[exact_color, exact_style]);
+    let direct_color_specs = printer::ColorSpecs::new(&[direct_color, direct_style]);
+    let indirect_color_specs = printer::ColorSpecs::new(&[indirect_color, indirect_style]);
 
     match flip {
         true => {
@@ -539,23 +535,23 @@ fn main() -> ExitCode {
 
     // Set a supports-color override based on the variable passed in.
     let color_choice = match cli.color {
-        ColorChoice::Always => {
-            log::trace!("ColorChoice set to Always");
-            TermColorChoice::Always
+        clap::ColorChoice::Always => {
+            log::trace!("clap::ColorChoice set to Always");
+            termcolor::ColorChoice::Always
         }
-        ColorChoice::Auto => {
-            log::trace!("ColorChoice request Auto");
+        clap::ColorChoice::Auto => {
+            log::trace!("clap::ColorChoice request Auto");
             if std::io::stdout().is_terminal() {
-                log::trace!("Running in terminal, ColorChoice set to Auto");
-                TermColorChoice::Auto
+                log::trace!("Running in terminal, clap::ColorChoice set to Auto");
+                termcolor::ColorChoice::Auto
             } else {
                 log::warn!("Not running in terminal, ColorCoice forced to Never");
-                TermColorChoice::Never
+                termcolor::ColorChoice::Never
             }
         }
-        ColorChoice::Never => {
-            log::trace!("ColorChoice set to Never");
-            TermColorChoice::Never
+        clap::ColorChoice::Never => {
+            log::trace!("clap::ColorChoice set to Never");
+            termcolor::ColorChoice::Never
         }
     };
 
@@ -573,7 +569,7 @@ fn main() -> ExitCode {
 
     let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
 
-    let content = match fs::read_to_string(file_path) {
+    let content = match std::fs::read_to_string(file_path) {
         Ok(content) => content,
         Err(err) => {
             log::error!("Can't open file {file_path}: {err}");
