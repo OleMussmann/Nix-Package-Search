@@ -1,10 +1,10 @@
-use clap::Parser;
 use clap::builder::styling::{AnsiColor, Effects, Styles};
+use clap::Parser;
 use env_logger;
 use grep::{printer, regex, searcher};
 use log;
-use std::{io::{IsTerminal, Write}, process::ExitCode};
-use termcolor::{WriteColor};
+use std::{io::IsTerminal, io::Write, process::ExitCode};
+use termcolor::WriteColor;
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -34,7 +34,7 @@ struct Cli {
         visible_alias = "colour",
         default_value_t = clap::ColorChoice::Auto,
         default_missing_value = "clap::ColorChoice::Auto",
-        env = "NIX_PACKAGE_SEARCH_COLOR_MODE",
+        env = "NIX_PACKAGE_SEARCH_COLOR_MODE"
         )]
     color: clap::ColorChoice,
 
@@ -46,7 +46,7 @@ struct Cli {
         default_value_t = ColumnsChoice::All,
         default_missing_value = "ColumnsChoice::All",
         value_enum,
-        env = "NIX_PACKAGE_SEARCH_COLUMNS",
+        env = "NIX_PACKAGE_SEARCH_COLUMNS"
     )]
     columns: ColumnsChoice,
 
@@ -56,7 +56,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        action = clap::ArgAction::Count,
+        action = clap::ArgAction::Count
     )]
     debug: u8,
 
@@ -69,7 +69,7 @@ struct Cli {
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_FLIP",
+        env = "NIX_PACKAGE_SEARCH_FLIP"
     )]
     flip: bool,
 
@@ -82,15 +82,12 @@ struct Cli {
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_IGNORE_CASE",
+        env = "NIX_PACKAGE_SEARCH_IGNORE_CASE"
     )]
     ignore_case: bool,
 
     /// Refresh package cache and exit
-    #[arg(
-        short,
-        long,
-    )]
+    #[arg(short, long)]
     refresh: bool,
 
     /// Separate match types with a newline
@@ -102,20 +99,18 @@ struct Cli {
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_PRINT_SEPARATOR",
+        env = "NIX_PACKAGE_SEARCH_PRINT_SEPARATOR"
     )]
     separate: bool,
 
     /// Search for any SEARCH_TERM in package names, description or versions
     #[arg(
-        required_unless_present_any = ["show_config_options", "refresh"],
+        required_unless_present_any = ["show_config_options", "refresh"]
     )]
     search_term: Option<String>,
 
     /// Show environment variable configuration options and exit
-    #[arg(
-        long,
-    )]
+    #[arg(long)]
     show_config_options: bool,
 
     // hidden vars, to be set via env vars
@@ -125,7 +120,7 @@ struct Cli {
         require_equals = true,
         hide = true,
         default_value = "~/.nix-package-search/",
-        env = "NIX_PACKAGE_SEARCH_FOLDER",
+        env = "NIX_PACKAGE_SEARCH_FOLDER"
     )]
     search_folder: std::path::PathBuf,
 
@@ -137,7 +132,7 @@ struct Cli {
         default_value_t = Colors::Magenta,
         value_enum,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_EXACT_COLOR",
+        env = "NIX_PACKAGE_SEARCH_EXACT_COLOR"
     )]
     exact_color: Colors,
 
@@ -149,7 +144,7 @@ struct Cli {
         default_value_t = Colors::Blue,
         value_enum,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_DIRECT_COLOR",
+        env = "NIX_PACKAGE_SEARCH_DIRECT_COLOR"
     )]
     direct_color: Colors,
 
@@ -161,7 +156,7 @@ struct Cli {
         default_value_t = Colors::Green,
         value_enum,
         action = clap::ArgAction::Set,
-        env = "NIX_PACKAGE_SEARCH_INDIRECT_COLOR",
+        env = "NIX_PACKAGE_SEARCH_INDIRECT_COLOR"
     )]
     indirect_color: Colors,
 }
@@ -452,8 +447,10 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
         .build(&format!("({}|^.)", search_term))
         .unwrap();
 
-    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
-    let direct_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
+    let exact_color: printer::UserColorSpec =
+        format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
+    let direct_color: printer::UserColorSpec =
+        format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
     let indirect_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.indirect_color)
         .parse()
         .unwrap();
