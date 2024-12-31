@@ -17,9 +17,9 @@ const CACHE_FOLDER_FILE_NAME: &str = "nps.experimental.cache";
 ///
 /// Matches are sorted by type. Show 'exact' matches first, then 'direct' matches, and finally 'indirect' matches.
 ///
-///   exact     SEARCH_TERM
-///   direct    SEARCH_TERMbar
-///   indirect  fooSEARCH_TERMbar (or match other columns)
+///   exact     SEARCH_TERM (in PACKAGE_NAME column)
+///   direct    SEARCH_TERMbar (in PACKAGE_NAME column)
+///   indirect  fooSEARCH_TERMbar (in any column)
 #[derive(clap::Parser, Debug)]
 #[command(author, version, verbatim_doc_comment, styles=styles())]
 struct Cli {
@@ -195,17 +195,17 @@ NIX_PACKAGE_SEARCH_COLUMNS
     default: all
 
 NIX_PACKAGE_SEARCH_EXACT_COLOR
-  Color of EXACT matches, match SEARCH_TERM
+  Color of EXACT matches, match SEARCH_TERM in PACKAGE_NAME
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: magenta
 
 NIX_PACKAGE_SEARCH_DIRECT_COLOR
-  Color of DIRECT matches, match SEARCH_TERMbar
+  Color of DIRECT matches, match SEARCH_TERMbar in PACKAGE_NAME
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: blue
 
 NIX_PACKAGE_SEARCH_INDIRECT_COLOR
-  Color of INDIRECT matches, match fooSEARCH_TERMbar
+  Color of INDIRECT matches, match fooSEARCH_TERMbar in any column
     possible values: black, blue, green, red, cyan, magenta, yellow, white
     default: green
 
