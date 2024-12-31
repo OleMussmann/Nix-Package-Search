@@ -277,24 +277,26 @@ fn print_formatted_option_help_text(
     Ok(())
 }
 
-fn get_matches(search_term: &str, content: &str, ignore_case: bool) -> String {
+fn get_matches(
+    search_term: &str,
+    content: &str,
+    ignore_case: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
     let matcher = regex::RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
-        .build(search_term)
-        .unwrap();
+        .build(search_term)?;
     let mut printer = printer::Standard::new_no_color(vec![]);
     searcher::SearcherBuilder::new()
         .line_number(false)
         .build()
-        .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))
-        .unwrap();
+        .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))?;
 
     // into_inner gives us back the underlying writer we provided to
     // new_no_color, which is wrapped in a termcolor::NoColor. Thus, a second
     // into_inner gives us back the actual buffer.
-    let output = String::from_utf8(printer.into_inner().into_inner()).unwrap();
+    let output = String::from_utf8(printer.into_inner().into_inner())?;
 
-    output
+    Ok(output)
 }
 
 fn convert_case(string: &str, ignore_case: bool) -> String {
@@ -323,15 +325,15 @@ fn print_matches(
     color_choice: termcolor::ColorChoice,
     joined_matches: String,
     matcher: &regex::RegexMatcher,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut printer = printer::StandardBuilder::new()
         .color_specs(color_specs)
         .build(termcolor::StandardStream::stdout(color_choice));
     searcher::SearcherBuilder::new()
         .line_number(false)
         .build()
-        .search_slice(matcher, &joined_matches.as_bytes(), printer.sink(&matcher))
-        .unwrap();
+        .search_slice(matcher, &joined_matches.as_bytes(), printer.sink(&matcher))?;
+    Ok(())
 }
 
 fn assemble_string(
@@ -351,7 +353,11 @@ fn assemble_string(
     }
 }
 
-fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, cli: Cli) {
+fn sort_matches<'a>(
+    raw_matches: String,
+    color_choice: termcolor::ColorChoice,
+    cli: Cli,
+) -> Result<(), Box<dyn std::error::Error>> {
     let search_term = &cli.search_term.unwrap();
     let columns = cli.columns;
     let flip = cli.flip;
@@ -444,19 +450,16 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
         // coloring. A bit hacky. Not that we would want that, but I have no clue why the first
         // char char is not colored as a regex match as well. Magic?
         // TODO make less hacky
-        .build(&format!("({}|^.)", search_term))
-        .unwrap();
+        .build(&format!("({}|^.)", search_term))?;
 
-    let exact_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", cli.exact_color).parse().unwrap();
+    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse()?;
     let direct_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", cli.direct_color).parse().unwrap();
-    let indirect_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.indirect_color)
-        .parse()
-        .unwrap();
-    let exact_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
-    let direct_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
-    let indirect_style: printer::UserColorSpec = "match:style:bold".parse().unwrap();
+        format!("match:fg:{:?}", cli.direct_color).parse()?;
+    let indirect_color: printer::UserColorSpec =
+        format!("match:fg:{:?}", cli.indirect_color).parse()?;
+    let exact_style: printer::UserColorSpec = "match:style:bold".parse()?;
+    let direct_style: printer::UserColorSpec = "match:style:bold".parse()?;
+    let indirect_style: printer::UserColorSpec = "match:style:bold".parse()?;
     let exact_color_specs = printer::ColorSpecs::new(&[exact_color, exact_style]);
     let direct_color_specs = printer::ColorSpecs::new(&[direct_color, direct_style]);
     let indirect_color_specs = printer::ColorSpecs::new(&[indirect_color, indirect_style]);
@@ -468,7 +471,7 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
                 color_choice,
                 indirect.join("\n"),
                 &matcher,
-            );
+            )?;
             if separate {
                 println!();
             }
@@ -477,14 +480,14 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
                 color_choice,
                 direct.join("\n"),
                 &matcher,
-            );
+            )?;
             if separate {
                 println!();
             }
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher);
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
         }
         false => {
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher);
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
             if separate {
                 println!();
             }
@@ -493,7 +496,7 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
                 color_choice,
                 direct.join("\n"),
                 &matcher,
-            );
+            )?;
             if separate {
                 println!();
             }
@@ -502,9 +505,10 @@ fn sort_matches<'a>(raw_matches: String, color_choice: termcolor::ColorChoice, c
                 color_choice,
                 indirect.join("\n"),
                 &matcher,
-            );
+            )?;
         }
     }
+    Ok(())
 }
 
 fn main() -> ExitCode {
@@ -574,9 +578,25 @@ fn main() -> ExitCode {
         }
     };
 
-    let raw_matches = get_matches(&cli.search_term.clone().unwrap(), &content, cli.ignore_case);
+    let raw_matches = match get_matches(
+        &cli.search_term.as_ref().unwrap(),
+        &content,
+        cli.ignore_case,
+    ) {
+        Ok(matches) => matches,
+        Err(err) => {
+            log::error!("Can't get matches: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
 
-    sort_matches(raw_matches, color_choice, cli);
+    match sort_matches(raw_matches, color_choice, cli) {
+        Ok(result) => result,
+        Err(err) => {
+            log::error!("Can't sort matches: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     return ExitCode::SUCCESS;
 }
