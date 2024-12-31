@@ -2,9 +2,13 @@ use clap::builder::styling::{AnsiColor, Effects, Styles};
 use clap::Parser;
 use env_logger;
 use grep::{printer, regex, searcher};
+use home;
 use log;
 use std::{io::IsTerminal, io::Write, process::ExitCode};
 use termcolor::WriteColor;
+
+const CACHE_FOLDER_LOCATION: &str = ".nix-package-search";
+const CACHE_FOLDER_FILE_NAME: &str = "nps.experimental.cache";
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -119,7 +123,8 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value = "~/.nix-package-search/",
+        default_value = home::home_dir().unwrap().join(CACHE_FOLDER_LOCATION).display().to_string(),
+        value_parser = clap::value_parser!(std::path::PathBuf),
         env = "NIX_PACKAGE_SEARCH_FOLDER"
     )]
     search_folder: std::path::PathBuf,
@@ -259,7 +264,17 @@ fn print_formatted_option_help_text(
 
     let mut stdout = termcolor::StandardStream::stdout(color_choice);
 
-    for line in help_text.lines() {
+    let help_text_with_folder = str::replace(
+        help_text,
+        "${HOME}/.nix-package-search",
+        &home::home_dir()
+            .unwrap()
+            .join(".nix-package-search")
+            .display()
+            .to_string(),
+    );
+
+    for line in help_text_with_folder.lines() {
         if line.is_empty() {
             header = true;
             println!();
@@ -568,12 +583,12 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     };
 
-    let file_path = "/home/ole/.nix-package-search/nps.experimental.cache";
+    let file_path: std::path::PathBuf = cli.search_folder.join(CACHE_FOLDER_FILE_NAME);
 
-    let content = match std::fs::read_to_string(file_path) {
+    let content = match std::fs::read_to_string(&file_path) {
         Ok(content) => content,
         Err(err) => {
-            log::error!("Can't open file {file_path}: {err}");
+            log::error!("Can't open file {}: {err}", &file_path.display());
             return ExitCode::FAILURE;
         }
     };
