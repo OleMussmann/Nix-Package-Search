@@ -29,21 +29,26 @@ struct Cli {
     // require_equals: force `--option=val` syntax
     // env: read env var if flag not present
     // takes_values: accept values from command line
+    // hide: hides the option from `-h`, those parameters are set via env vars
     /// Highlight search matches in color
     #[arg(
         short,
-        long="color",
-        visible_alias="colour",
+        long = "color",
+        require_equals = true,
+        visible_alias = "colour",
         default_value_t = ColorChoice::Auto,
-        env="NIX_PACKAGE_SEARCH_COLOR_MODE",
+        default_missing_value = "ColorChoice::Auto",
+        env = "NIX_PACKAGE_SEARCH_COLOR_MODE",
         )]
     color: ColorChoice,
 
     /// Choose columns to show
     #[arg(
-        short='C',
-        long="columns",
+        short = 'C',
+        long = "columns",
+        require_equals = true,
         default_value_t = ColumnsChoice::All,
+        default_missing_value = "ColumnsChoice::All",
         value_enum,
         env = "NIX_PACKAGE_SEARCH_COLUMNS",
     )]
@@ -63,10 +68,10 @@ struct Cli {
     #[arg(
         short,
         long,
+        require_equals = true,
         default_value_t = false,
         default_missing_value = "true",
-        num_args=0..=1,
-        require_equals=true,
+        num_args = 0..=1,
         action = clap::ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_FLIP",
     )]
@@ -76,9 +81,10 @@ struct Cli {
     #[arg(
         short,
         long,
+        require_equals = true,
         default_value_t = false,
         default_missing_value = "true",
-        num_args=0..=1,
+        num_args = 0..=1,
         action = clap::ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_IGNORE_CASE",
     )]
@@ -95,11 +101,12 @@ struct Cli {
     #[arg(
         short,
         long,
+        require_equals = true,
         default_value_t = false,
         default_missing_value = "true",
-        num_args=0..=1,
+        num_args = 0..=1,
         action = clap::ArgAction::Set,
-        env="NIX_PACKAGE_SEARCH_PRINT_SEPARATOR",
+        env = "NIX_PACKAGE_SEARCH_PRINT_SEPARATOR",
     )]
     separate: bool,
 
@@ -119,46 +126,46 @@ struct Cli {
     /// Cache lives here
     #[arg(
         long,
-        default_value = "~/.nix-package-search/",
-        env = "NIX_PACKAGE_SEARCH_FOLDER",
         require_equals = true,
         hide = true,
+        default_value = "~/.nix-package-search/",
+        env = "NIX_PACKAGE_SEARCH_FOLDER",
     )]
     search_folder: path::PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
         long,
+        require_equals = true,
+        hide = true,
         default_value_t = Colors::Magenta,
         value_enum,
-        require_equals=true,
         action = clap::ArgAction::Set,
-        env="NIX_PACKAGE_SEARCH_EXACT_COLOR",
-        hide = true,
+        env = "NIX_PACKAGE_SEARCH_EXACT_COLOR",
     )]
     exact_color: Colors,
 
     /// Color of DIRECT matches, match SEARCH_TERMbar
     #[arg(
         long,
+        require_equals = true,
+        hide = true,
         default_value_t = Colors::Blue,
         value_enum,
-        require_equals=true,
         action = clap::ArgAction::Set,
-        env="NIX_PACKAGE_SEARCH_DIRECT_COLOR",
-        hide = true,
+        env = "NIX_PACKAGE_SEARCH_DIRECT_COLOR",
     )]
     direct_color: Colors,
 
     /// Color of DIRECT matches, match fooSEARCH_TERMbar (or match other columns)
     #[arg(
         long,
+        require_equals = true,
+        hide = true,
         default_value_t = Colors::Green,
         value_enum,
-        require_equals=true,
         action = clap::ArgAction::Set,
-        env="NIX_PACKAGE_SEARCH_INDIRECT_COLOR",
-        hide = true,
+        env = "NIX_PACKAGE_SEARCH_INDIRECT_COLOR",
     )]
     indirect_color: Colors,
 }
