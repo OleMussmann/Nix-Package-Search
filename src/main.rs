@@ -4,13 +4,17 @@ use env_logger;
 use grep::{printer, regex, searcher};
 use home;
 use log;
-use std::{io::IsTerminal, process::ExitCode};
+use serde::Deserialize;
+use serde_json;
+use std::{io::IsTerminal, io::Write, process::Command, process::ExitCode};
+use tempfile;
 use termcolor;
 
 const DEFAULTS: Defaults = Defaults {
-    cache_folder: ".nix-package-search",  // /home/USER/...
-    cache_file: "nps.cache",
-    experimental_cache_file: "nps.experimental.cache",
+    cache_folder: ".nix-package-search", // /home/USER/...
+    cache_file: "nps.dev.cache",
+    experimental: false,
+    experimental_cache_file: "nps.experimental.dev.cache",
     color_mode: clap::ColorChoice::Auto,
     columns: ColumnsChoice::All,
     flip: false,
@@ -82,6 +86,19 @@ struct Cli {
     )]
     debug: u8,
 
+    /// Use experimental flakes
+    #[arg(
+        short,
+        long,
+        require_equals = true,
+        default_value_t = DEFAULTS.experimental,
+        default_missing_value = "true",
+        num_args = 0..=1,
+        action = clap::ArgAction::Set,
+        env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL"
+    )]
+    experimental: bool,
+
     /// Flip the order of matches and sorting
     #[arg(
         short,
@@ -136,7 +153,6 @@ struct Cli {
     show_config_options: bool,
 
     // hidden vars, to be set via env vars
-
     /// Cache lives here
     #[arg(
         long,
@@ -212,6 +228,14 @@ CONFIGURATION
 
 `nps` can be configured with environment variables. You can set these in
 the configuration file of your shell, e.g. .bashrc/.zshrc
+
+NIX_PACKAGE_SEARCH_EXPERIMENTAL
+  Use the experimental 'nix search' command.
+  It pulls information from the nix flake registries instead of nix channels.
+  This is useful if no channels are in use, or channels are not updated
+  regularly.
+    [default: {DEFAULT_EXPERIMENTAL}]
+    [possible values: true, false]
 
 NIX_PACKAGE_SEARCH_FLIP
   Flip the order of matches? By default most relevant matches appear below,
@@ -309,6 +333,7 @@ fn styles() -> Styles {
 struct Defaults<'a> {
     cache_folder: &'a str,
     cache_file: &'a str,
+    experimental: bool,
     experimental_cache_file: &'a str,
     color_mode: clap::ColorChoice,
     columns: ColumnsChoice,
@@ -321,23 +346,41 @@ struct Defaults<'a> {
     indirect_color: Colors,
 }
 
-fn option_help_text(
-    help_text: &str,
-) -> String {
+fn option_help_text(help_text: &str) -> String {
     help_text
+        .replace("{DEFAULT_EXPERIMENTAL}", &DEFAULTS.experimental.to_string())
         .replace("{DEFAULT_CACHE_FOLDER}", DEFAULTS.cache_folder)
         .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
-        .replace("{DEFAULT_CACHE_FOLDER}", DEFAULTS.cache_folder)
-        .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
-        .replace("{DEFAULT_EXPERIMENTAL_CACHE_FILE}", DEFAULTS.experimental_cache_file)
-        .replace("{DEFAULT_COLOR_MODE}", &DEFAULTS.color_mode.to_string().to_lowercase())
-        .replace("{DEFAULT_COLUMNS}", &format!("{:?}", DEFAULTS.columns).to_lowercase())
+        .replace(
+            "{DEFAULT_EXPERIMENTAL_CACHE_FILE}",
+            DEFAULTS.experimental_cache_file,
+        )
+        .replace(
+            "{DEFAULT_COLOR_MODE}",
+            &DEFAULTS.color_mode.to_string().to_lowercase(),
+        )
+        .replace(
+            "{DEFAULT_COLUMNS}",
+            &format!("{:?}", DEFAULTS.columns).to_lowercase(),
+        )
         .replace("{DEFAULT_FLIP}", &DEFAULTS.flip.to_string())
         .replace("{DEFAULT_IGNORE_CASE}", &DEFAULTS.ignore_case.to_string())
-        .replace("{DEFAULT_PRINT_SEPARATOR}", &DEFAULTS.print_separator.to_string())
-        .replace("{DEFAULT_EXACT_COLOR}", &format!("{:?}", DEFAULTS.exact_color).to_lowercase())
-        .replace("{DEFAULT_DIRECT_COLOR}", &format!("{:?}", DEFAULTS.direct_color).to_lowercase())
-        .replace("{DEFAULT_INDIRECT_COLOR}", &format!("{:?}", DEFAULTS.indirect_color).to_lowercase())
+        .replace(
+            "{DEFAULT_PRINT_SEPARATOR}",
+            &DEFAULTS.print_separator.to_string(),
+        )
+        .replace(
+            "{DEFAULT_EXACT_COLOR}",
+            &format!("{:?}", DEFAULTS.exact_color).to_lowercase(),
+        )
+        .replace(
+            "{DEFAULT_DIRECT_COLOR}",
+            &format!("{:?}", DEFAULTS.direct_color).to_lowercase(),
+        )
+        .replace(
+            "{DEFAULT_INDIRECT_COLOR}",
+            &format!("{:?}", DEFAULTS.indirect_color).to_lowercase(),
+        )
 }
 
 fn get_matches(
@@ -574,6 +617,84 @@ fn sort_matches<'a>(
     Ok(())
 }
 
+fn parse_json_to_cache(raw_output: &str) -> String {
+    let parsed: std::collections::HashMap<String, Package> =
+        serde_json::from_str(raw_output).unwrap();
+    let mut result = vec![];
+    for (_, package) in parsed.into_iter() {
+        result.push(format!(
+            "{} {} {}",
+            package.pname, package.version, package.description
+        ));
+    }
+    result.sort();
+    result.join("\n")
+}
+
+#[derive(Debug, Deserialize)]
+struct Package {
+    pname: String,
+    version: String,
+    description: String,
+}
+
+fn refresh(experimental: bool) -> Result<(usize, String), Box<dyn std::error::Error>> {
+    let output = match experimental {
+        true => Command::new("nix")
+            .arg("search")
+            .arg("nixpkgs")
+            .arg("^")
+            .arg("--json")
+            .output()?,
+        false => Command::new("nix-env")
+            .arg("-qaP")
+            .arg("--description")
+            .output()?,
+    };
+
+    let (stdout, _stderr) = (
+        std::str::from_utf8(&output.stdout).unwrap(),
+        std::str::from_utf8(&output.stderr).unwrap(),
+    );
+
+    // experimental=true fails, why? TODO
+    //if stderr != "" {
+    //    return Err(stderr.into());
+    //}
+
+    let cache_content = match experimental {
+        true => parse_json_to_cache(stdout),
+        false => stdout.to_string(),
+    };
+
+    // Create cache folder, if not exists
+    std::fs::create_dir_all(
+        home::home_dir()
+            .unwrap()
+            .join(std::path::PathBuf::from(DEFAULTS.cache_folder)),
+    )?;
+
+    // Paths for cache folder and cache file
+    let cache_folder_path = home::home_dir()
+        .unwrap()
+        .join(std::path::PathBuf::from(DEFAULTS.cache_folder));
+    let cache_file_path = match experimental {
+        true => &cache_folder_path.join(std::path::PathBuf::from(DEFAULTS.experimental_cache_file)),
+        false => &cache_folder_path.join(std::path::PathBuf::from(DEFAULTS.cache_file)),
+    };
+
+    // Write first to a tmp file, then persist (move) it to destination
+    let tempfile = tempfile::NamedTempFile::new_in(cache_folder_path)?;
+    write!(&tempfile, "{}", cache_content)?;
+
+    tempfile.persist(cache_file_path)?;
+
+    let number_of_packages = cache_content.lines().count();
+    let cache_file_path_string = cache_file_path.display().to_string();
+
+    return Ok((number_of_packages, cache_file_path_string));
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -593,9 +714,6 @@ fn main() -> ExitCode {
     }
 
     log::trace!("Log level set to: {}", log_level);
-
-    //dbg!(cli);
-    //return ExitCode::SUCCESS;
 
     // Set a supports-color override based on the variable passed in.
     let color_choice = match cli.color {
@@ -618,6 +736,19 @@ fn main() -> ExitCode {
             termcolor::ColorChoice::Never
         }
     };
+
+    if cli.refresh {
+        match refresh(cli.experimental) {
+            Ok((number_of_packages, cache_file_path_string)) => {
+                log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
+                return ExitCode::SUCCESS;
+            }
+            Err(err) => {
+                log::error!("Can't refresh: {err}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
 
     let file_path: std::path::PathBuf = cli.cache_folder.join(DEFAULTS.experimental_cache_file);
 
