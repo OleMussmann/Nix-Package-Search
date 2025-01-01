@@ -13,7 +13,7 @@ const DEFAULTS: Defaults = Defaults {
     experimental_cache_file: "nps.experimental.cache",
     color_mode: clap::ColorChoice::Auto,
     columns: ColumnsChoice::All,
-    flip: true,
+    flip: false,
     ignore_case: true,
     print_separator: true,
 
@@ -54,7 +54,7 @@ struct Cli {
         long = "color",
         require_equals = true,
         visible_alias = "colour",
-        default_value_t = clap::ColorChoice::Auto,
+        default_value_t = DEFAULTS.color_mode,
         default_missing_value = "clap::ColorChoice::Auto",
         env = "NIX_PACKAGE_SEARCH_COLOR_MODE"
         )]
@@ -65,7 +65,7 @@ struct Cli {
         short = 'C',
         long = "columns",
         require_equals = true,
-        default_value_t = ColumnsChoice::All,
+        default_value_t = DEFAULTS.columns,
         default_missing_value = "ColumnsChoice::All",
         value_enum,
         env = "NIX_PACKAGE_SEARCH_COLUMNS"
@@ -100,7 +100,7 @@ struct Cli {
         short,
         long,
         require_equals = true,
-        default_value_t = false,
+        default_value_t = DEFAULTS.ignore_case,
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
@@ -117,7 +117,7 @@ struct Cli {
         short,
         long,
         require_equals = true,
-        default_value_t = false,
+        default_value_t = DEFAULTS.print_separator,
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
@@ -153,7 +153,7 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value = home::home_dir().unwrap().join(DEFAULTS.cache_file).display().to_string(),
+        default_value = DEFAULTS.cache_file,
         value_parser = clap::value_parser!(std::path::PathBuf),
         env = "NIX_PACKAGE_SEARCH_CACHE_FILE"
     )]
@@ -164,18 +164,18 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value = home::home_dir().unwrap().join(DEFAULTS.experimental_cache_file).display().to_string(),
+        default_value = DEFAULTS.experimental_cache_file,
         value_parser = clap::value_parser!(std::path::PathBuf),
         env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE"
     )]
-    cache_folder: std::path::PathBuf,
+    experimental_cache_file: std::path::PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
         long,
         require_equals = true,
         hide = true,
-        default_value_t = Colors::Magenta,
+        default_value_t = DEFAULTS.exact_color,
         value_enum,
         action = clap::ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_EXACT_COLOR"
@@ -187,7 +187,7 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value_t = Colors::Blue,
+        default_value_t = DEFAULTS.direct_color,
         value_enum,
         action = clap::ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_DIRECT_COLOR"
@@ -199,7 +199,7 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value_t = Colors::Green,
+        default_value_t = DEFAULTS.indirect_color,
         value_enum,
         action = clap::ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_INDIRECT_COLOR"
@@ -214,9 +214,9 @@ CONFIGURATION
 the configuration file of your shell, e.g. .bashrc/.zshrc
 
 NIX_PACKAGE_SEARCH_FLIP
-  Flip the order of matches? By default most relevant matches appear first.
-  Flipping the order makes them appear last and is thus easier to read with
-  long output.
+  Flip the order of matches? By default most relevant matches appear below,
+  which is easier to read with long output. Flipping shows most relevant
+  matches on top.
     [default: {DEFAULT_FLIP}]
     [possible values: true, false]
 
@@ -501,7 +501,7 @@ fn sort_matches<'a>(
         ));
     }
 
-    if flip {
+    if flip == false {
         exact.reverse();
         direct.reverse();
         indirect.reverse();
@@ -529,12 +529,7 @@ fn sort_matches<'a>(
 
     match flip {
         true => {
-            print_matches(
-                indirect_color_specs,
-                color_choice,
-                indirect.join("\n"),
-                &matcher,
-            )?;
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
             if separate {
                 println!();
             }
@@ -547,10 +542,20 @@ fn sort_matches<'a>(
             if separate {
                 println!();
             }
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
+            print_matches(
+                indirect_color_specs,
+                color_choice,
+                indirect.join("\n"),
+                &matcher,
+            )?;
         }
         false => {
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
+            print_matches(
+                indirect_color_specs,
+                color_choice,
+                indirect.join("\n"),
+                &matcher,
+            )?;
             if separate {
                 println!();
             }
@@ -563,12 +568,7 @@ fn sort_matches<'a>(
             if separate {
                 println!();
             }
-            print_matches(
-                indirect_color_specs,
-                color_choice,
-                indirect.join("\n"),
-                &matcher,
-            )?;
+            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
         }
     }
     Ok(())
