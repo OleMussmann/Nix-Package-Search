@@ -4,11 +4,23 @@ use env_logger;
 use grep::{printer, regex, searcher};
 use home;
 use log;
-use std::{io::IsTerminal, io::Write, process::ExitCode};
-use termcolor::WriteColor;
+use std::{io::IsTerminal, process::ExitCode};
+use termcolor;
 
-const CACHE_FOLDER_LOCATION: &str = ".nix-package-search";
-const CACHE_FOLDER_FILE_NAME: &str = "nps.experimental.cache";
+const DEFAULTS: Defaults = Defaults {
+    cache_folder: ".nix-package-search",  // /home/USER/...
+    cache_file: "nps.cache",
+    experimental_cache_file: "nps.experimental.cache",
+    color_mode: clap::ColorChoice::Auto,
+    columns: ColumnsChoice::All,
+    flip: true,
+    ignore_case: true,
+    print_separator: true,
+
+    exact_color: Colors::Magenta,
+    direct_color: Colors::Blue,
+    indirect_color: Colors::Green,
+};
 
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
@@ -21,7 +33,13 @@ const CACHE_FOLDER_FILE_NAME: &str = "nps.experimental.cache";
 ///   direct    SEARCH_TERMbar (in PACKAGE_NAME column)
 ///   indirect  fooSEARCH_TERMbar (in any column)
 #[derive(clap::Parser, Debug)]
-#[command(author, version, verbatim_doc_comment, styles=styles())]
+#[command(
+    author,
+    version,
+    verbatim_doc_comment,
+    styles = styles(),
+    after_long_help = option_help_text(ENV_VAR_OPTIONS)
+)]
 struct Cli {
     // default_value_t: value if flag (or env var) not present
     // default_missing_value: value if flag is present, but has no value
@@ -69,7 +87,7 @@ struct Cli {
         short,
         long,
         require_equals = true,
-        default_value_t = false,
+        default_value_t = DEFAULTS.flip,
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set,
@@ -109,7 +127,7 @@ struct Cli {
 
     /// Search for any SEARCH_TERM in package names, description or versions
     #[arg(
-        required_unless_present_any = ["show_config_options", "refresh"]
+        required_unless_present_any = ["refresh"]
     )]
     search_term: Option<String>,
 
@@ -118,16 +136,39 @@ struct Cli {
     show_config_options: bool,
 
     // hidden vars, to be set via env vars
+
     /// Cache lives here
     #[arg(
         long,
         require_equals = true,
         hide = true,
-        default_value = home::home_dir().unwrap().join(CACHE_FOLDER_LOCATION).display().to_string(),
+        default_value = home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string(),
         value_parser = clap::value_parser!(std::path::PathBuf),
-        env = "NIX_PACKAGE_SEARCH_FOLDER"
+        env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER"
     )]
-    search_folder: std::path::PathBuf,
+    cache_folder: std::path::PathBuf,
+
+    /// Cache file name
+    #[arg(
+        long,
+        require_equals = true,
+        hide = true,
+        default_value = home::home_dir().unwrap().join(DEFAULTS.cache_file).display().to_string(),
+        value_parser = clap::value_parser!(std::path::PathBuf),
+        env = "NIX_PACKAGE_SEARCH_CACHE_FILE"
+    )]
+    cache_file: std::path::PathBuf,
+
+    /// Experimental cache file name
+    #[arg(
+        long,
+        require_equals = true,
+        hide = true,
+        default_value = home::home_dir().unwrap().join(DEFAULTS.experimental_cache_file).display().to_string(),
+        value_parser = clap::value_parser!(std::path::PathBuf),
+        env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE"
+    )]
+    cache_folder: std::path::PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
@@ -168,6 +209,7 @@ struct Cli {
 
 static ENV_VAR_OPTIONS: &str = "
 CONFIGURATION
+
 `nps` can be configured with environment variables. You can set these in
 the configuration file of your shell, e.g. .bashrc/.zshrc
 
@@ -175,52 +217,60 @@ NIX_PACKAGE_SEARCH_FLIP
   Flip the order of matches? By default most relevant matches appear first.
   Flipping the order makes them appear last and is thus easier to read with
   long output.
-    possible values: true, false
-    default: false
+    [default: {DEFAULT_FLIP}]
+    [possible values: true, false]
 
-NIX_PACKAGE_SEARCH_FOLDER
+NIX_PACKAGE_SEARCH_CACHE_FOLDER
   In which folder is the cache located?
-    possible values: path
-    default: ${HOME}/.nix-package-search
+    [default: {DEFAULT_CACHE_FOLDER}]
+    [possible values: path]
 
 NIX_PACKAGE_SEARCH_CACHE_FILE
   Name of the cache file
-    possible values: filename
-    default: nps.cache
+    [default: {DEFAULT_CACHE_FILE}]
+    [possible values: filename]
+
+NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE
+  Name of the cache file
+    [default: {DEFAULT_EXPERIMENTAL_CACHE_FILE}]
+    [possible values: filename]
 
 NIX_PACKAGE_SEARCH_COLUMNS
   Choose columns to show: PACKAGE_NAME plus any of PACKAGE_VERSION or
   PACKAGE_DESCRIPTION
-    possible values: all, none, version, description
-    default: all
+    [default: {DEFAULT_COLUMNS}]
+    [possible values: all, none, version, description]
 
 NIX_PACKAGE_SEARCH_EXACT_COLOR
   Color of EXACT matches, match SEARCH_TERM in PACKAGE_NAME
-    possible values: black, blue, green, red, cyan, magenta, yellow, white
-    default: magenta
+    [default: {DEFAULT_EXACT_COLOR}]
+    [possible values: black, blue, green, red, cyan, magenta, yellow, white]
 
 NIX_PACKAGE_SEARCH_DIRECT_COLOR
   Color of DIRECT matches, match SEARCH_TERMbar in PACKAGE_NAME
-    possible values: black, blue, green, red, cyan, magenta, yellow, white
-    default: blue
+    [default: {DEFAULT_DIRECT_COLOR}]
+    [possible values: black, blue, green, red, cyan, magenta, yellow, white]
 
 NIX_PACKAGE_SEARCH_INDIRECT_COLOR
   Color of INDIRECT matches, match fooSEARCH_TERMbar in any column
-    possible values: black, blue, green, red, cyan, magenta, yellow, white
-    default: green
+    [default: {DEFAULT_INDIRECT_COLOR}]
+    [possible values: black, blue, green, red, cyan, magenta, yellow, white]
 
 NIX_PACKAGE_SEARCH_COLOR_MODE
-  show search matches in color
-    possible values:
-      - never:   Never show color
-      - always:  Always show color
-      - auto:    Only show color if stdout is in terminal, suppress if e.g. piped
-    default: auto
+  Show search matches in color
+  auto: Only show color if stdout is in terminal, suppress if e.g. piped
+    [default: {DEFAULT_COLOR_MODE}]
+    [possible values: always, never, auto]
 
 NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
   Separate matches with a newline?
-    possible values: true, false
-    default: true
+    [default: {DEFAULT_PRINT_SEPARATOR}]
+    [possible values: true, false]
+
+NIX_PACKAGE_SEARCH_IGNORE_CASE
+  Search ignore capitalization for the search?
+    [default: {DEFAULT_IGNORE_CASE}]
+    [possible values: true, false]
 ";
 
 /// Column name options
@@ -256,40 +306,38 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
-fn print_formatted_option_help_text(
+struct Defaults<'a> {
+    cache_folder: &'a str,
+    cache_file: &'a str,
+    experimental_cache_file: &'a str,
+    color_mode: clap::ColorChoice,
+    columns: ColumnsChoice,
+    flip: bool,
+    ignore_case: bool,
+    print_separator: bool,
+
+    exact_color: Colors,
+    direct_color: Colors,
+    indirect_color: Colors,
+}
+
+fn option_help_text(
     help_text: &str,
-    color_choice: termcolor::ColorChoice,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut header = false;
-
-    let mut stdout = termcolor::StandardStream::stdout(color_choice);
-
-    let help_text_with_folder = str::replace(
-        help_text,
-        "${HOME}/.nix-package-search",
-        &home::home_dir()
-            .unwrap()
-            .join(".nix-package-search")
-            .display()
-            .to_string(),
-    );
-
-    for line in help_text_with_folder.lines() {
-        if line.is_empty() {
-            header = true;
-            println!();
-            continue;
-        }
-        if header {
-            stdout.set_color(termcolor::ColorSpec::new().set_bold(true))?;
-            writeln!(stdout, "{}", line)?;
-            stdout.set_color(termcolor::ColorSpec::new().set_bold(false))?;
-            header = false;
-        } else {
-            println!("{}", line);
-        }
-    }
-    Ok(())
+) -> String {
+    help_text
+        .replace("{DEFAULT_CACHE_FOLDER}", DEFAULTS.cache_folder)
+        .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
+        .replace("{DEFAULT_CACHE_FOLDER}", DEFAULTS.cache_folder)
+        .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
+        .replace("{DEFAULT_EXPERIMENTAL_CACHE_FILE}", DEFAULTS.experimental_cache_file)
+        .replace("{DEFAULT_COLOR_MODE}", &DEFAULTS.color_mode.to_string().to_lowercase())
+        .replace("{DEFAULT_COLUMNS}", &format!("{:?}", DEFAULTS.columns).to_lowercase())
+        .replace("{DEFAULT_FLIP}", &DEFAULTS.flip.to_string())
+        .replace("{DEFAULT_IGNORE_CASE}", &DEFAULTS.ignore_case.to_string())
+        .replace("{DEFAULT_PRINT_SEPARATOR}", &DEFAULTS.print_separator.to_string())
+        .replace("{DEFAULT_EXACT_COLOR}", &format!("{:?}", DEFAULTS.exact_color).to_lowercase())
+        .replace("{DEFAULT_DIRECT_COLOR}", &format!("{:?}", DEFAULTS.direct_color).to_lowercase())
+        .replace("{DEFAULT_INDIRECT_COLOR}", &format!("{:?}", DEFAULTS.indirect_color).to_lowercase())
 }
 
 fn get_matches(
@@ -571,19 +619,7 @@ fn main() -> ExitCode {
         }
     };
 
-    if cli.show_config_options {
-        log::trace!("Show config options and exit");
-        match print_formatted_option_help_text(ENV_VAR_OPTIONS, color_choice) {
-            Ok(_) => (),
-            Err(err) => {
-                log::error!("Can't show config options: {}", err);
-                return ExitCode::FAILURE;
-            }
-        };
-        return ExitCode::SUCCESS;
-    };
-
-    let file_path: std::path::PathBuf = cli.search_folder.join(CACHE_FOLDER_FILE_NAME);
+    let file_path: std::path::PathBuf = cli.cache_folder.join(DEFAULTS.experimental_cache_file);
 
     let content = match std::fs::read_to_string(&file_path) {
         Ok(content) => content,
