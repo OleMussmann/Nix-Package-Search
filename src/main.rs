@@ -560,8 +560,7 @@ fn sort_matches<'a>(
         .build(&format!("({}|^.)", search_term))?;
 
     let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", exact_color).parse()?;
-    let direct_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", direct_color).parse()?;
+    let direct_color: printer::UserColorSpec = format!("match:fg:{:?}", direct_color).parse()?;
     let indirect_color: printer::UserColorSpec =
         format!("match:fg:{:?}", indirect_color).parse()?;
     let exact_style: printer::UserColorSpec = "match:style:bold".parse()?;
@@ -639,7 +638,12 @@ struct Package {
     description: String,
 }
 
-fn refresh(experimental: bool, cache_folder: std::path::PathBuf, cache_file: std::path::PathBuf, experimental_cache_file: std::path::PathBuf) -> Result<(usize, String), Box<dyn std::error::Error>> {
+fn refresh(
+    experimental: bool,
+    cache_folder: std::path::PathBuf,
+    cache_file: std::path::PathBuf,
+    experimental_cache_file: std::path::PathBuf,
+) -> Result<(usize, String), Box<dyn std::error::Error>> {
     let output = match experimental {
         true => Command::new("nix")
             .arg("search")
@@ -739,7 +743,12 @@ fn main() -> ExitCode {
     };
 
     if cli.refresh {
-        match refresh(cli.experimental, cli.cache_folder, cli.cache_file, cli.experimental_cache_file) {
+        match refresh(
+            cli.experimental,
+            cli.cache_folder,
+            cli.cache_file,
+            cli.experimental_cache_file,
+        ) {
             Ok((number_of_packages, cache_file_path_string)) => {
                 log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
                 return ExitCode::SUCCESS;
@@ -773,7 +782,18 @@ fn main() -> ExitCode {
         }
     };
 
-    match sort_matches(raw_matches, color_choice, cli.search_term.unwrap(), cli.columns, cli.flip, cli.ignore_case, cli.separate, cli.exact_color, cli.direct_color, cli.indirect_color) {
+    match sort_matches(
+        raw_matches,
+        color_choice,
+        cli.search_term.unwrap(),
+        cli.columns,
+        cli.flip,
+        cli.ignore_case,
+        cli.separate,
+        cli.exact_color,
+        cli.direct_color,
+        cli.indirect_color,
+    ) {
         Ok(result) => result,
         Err(err) => {
             log::error!("Can't sort matches: {err}");
