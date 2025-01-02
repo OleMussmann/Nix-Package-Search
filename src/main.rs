@@ -462,14 +462,15 @@ fn assemble_string(
 fn sort_matches<'a>(
     raw_matches: String,
     color_choice: termcolor::ColorChoice,
-    cli: Cli,
+    search_term: String,
+    columns: ColumnsChoice,
+    flip: bool,
+    ignore_case: bool,
+    separate: bool,
+    exact_color: Colors,
+    direct_color: Colors,
+    indirect_color: Colors,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let search_term = &cli.search_term.unwrap();
-    let columns = cli.columns;
-    let flip = cli.flip;
-    let ignore_case = cli.ignore_case;
-    let separate = cli.separate;
-
     let mut matches = Matches {
         exact: vec![],
         direct: vec![],
@@ -558,11 +559,11 @@ fn sort_matches<'a>(
         // TODO make less hacky
         .build(&format!("({}|^.)", search_term))?;
 
-    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", cli.exact_color).parse()?;
+    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", exact_color).parse()?;
     let direct_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", cli.direct_color).parse()?;
+        format!("match:fg:{:?}", direct_color).parse()?;
     let indirect_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", cli.indirect_color).parse()?;
+        format!("match:fg:{:?}", indirect_color).parse()?;
     let exact_style: printer::UserColorSpec = "match:style:bold".parse()?;
     let direct_style: printer::UserColorSpec = "match:style:bold".parse()?;
     let indirect_style: printer::UserColorSpec = "match:style:bold".parse()?;
@@ -638,7 +639,7 @@ struct Package {
     description: String,
 }
 
-fn refresh(experimental: bool) -> Result<(usize, String), Box<dyn std::error::Error>> {
+fn refresh(experimental: bool, cache_folder: std::path::PathBuf, cache_file: std::path::PathBuf, experimental_cache_file: std::path::PathBuf) -> Result<(usize, String), Box<dyn std::error::Error>> {
     let output = match experimental {
         true => Command::new("nix")
             .arg("search")
@@ -671,16 +672,16 @@ fn refresh(experimental: bool) -> Result<(usize, String), Box<dyn std::error::Er
     std::fs::create_dir_all(
         home::home_dir()
             .unwrap()
-            .join(std::path::PathBuf::from(DEFAULTS.cache_folder)),
+            .join(std::path::PathBuf::from(&cache_folder)),
     )?;
 
     // Paths for cache folder and cache file
     let cache_folder_path = home::home_dir()
         .unwrap()
-        .join(std::path::PathBuf::from(DEFAULTS.cache_folder));
+        .join(std::path::PathBuf::from(cache_folder));
     let cache_file_path = match experimental {
-        true => &cache_folder_path.join(std::path::PathBuf::from(DEFAULTS.experimental_cache_file)),
-        false => &cache_folder_path.join(std::path::PathBuf::from(DEFAULTS.cache_file)),
+        true => &cache_folder_path.join(std::path::PathBuf::from(experimental_cache_file)),
+        false => &cache_folder_path.join(std::path::PathBuf::from(cache_file)),
     };
 
     // Write first to a tmp file, then persist (move) it to destination
@@ -738,7 +739,7 @@ fn main() -> ExitCode {
     };
 
     if cli.refresh {
-        match refresh(cli.experimental) {
+        match refresh(cli.experimental, cli.cache_folder, cli.cache_file, cli.experimental_cache_file) {
             Ok((number_of_packages, cache_file_path_string)) => {
                 log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
                 return ExitCode::SUCCESS;
@@ -750,7 +751,7 @@ fn main() -> ExitCode {
         }
     }
 
-    let file_path: std::path::PathBuf = cli.cache_folder.join(DEFAULTS.experimental_cache_file);
+    let file_path: std::path::PathBuf = cli.cache_folder.join(cli.experimental_cache_file);
 
     let content = match std::fs::read_to_string(&file_path) {
         Ok(content) => content,
@@ -772,7 +773,7 @@ fn main() -> ExitCode {
         }
     };
 
-    match sort_matches(raw_matches, color_choice, cli) {
+    match sort_matches(raw_matches, color_choice, cli.search_term.unwrap(), cli.columns, cli.flip, cli.ignore_case, cli.separate, cli.exact_color, cli.direct_color, cli.indirect_color) {
         Ok(result) => result,
         Err(err) => {
             log::error!("Can't sort matches: {err}");
