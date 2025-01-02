@@ -148,10 +148,6 @@ struct Cli {
     )]
     search_term: Option<String>,
 
-    /// Show environment variable configuration options and exit
-    #[arg(long)]
-    show_config_options: bool,
-
     // hidden vars, to be set via env vars
     /// Cache lives here
     #[arg(
