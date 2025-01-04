@@ -337,13 +337,12 @@ enum Colors {
     White,
 }
 
-/// Supply Styles for colored help output.
-fn styles() -> Styles {
-    Styles::styled()
-        .header(AnsiColor::Red.on_default() | Effects::BOLD)
-        .usage(AnsiColor::Red.on_default() | Effects::BOLD)
-        .literal(AnsiColor::Blue.on_default() | Effects::BOLD)
-        .placeholder(AnsiColor::Green.on_default())
+/// Format to parse JSON package info into
+#[derive(Debug, Deserialize)]
+struct Package {
+    pname: String,
+    version: String,
+    description: String,
 }
 
 /// Defines possible default settings.
@@ -361,6 +360,15 @@ struct Defaults<'a> {
     exact_color: Colors,
     direct_color: Colors,
     indirect_color: Colors,
+}
+
+/// Supply Styles for colored help output.
+fn styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Red.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Red.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Blue.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Green.on_default())
 }
 
 /// Replace template items in long help text with default settings.
@@ -401,13 +409,18 @@ fn option_help_text(help_text: &str) -> String {
         )
 }
 
+/// Find matches from cache file
 fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
     let search_term = cli.search_term.as_ref().unwrap();
 
+    // Matcher to find search term in rows
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cli.ignore_case)
         .build(search_term)?;
+    // Printer collects matching rows in a Vec
     let mut printer = Standard::new_no_color(vec![]);
+
+    // Execute search and collect output
     SearcherBuilder::new()
         .line_number(false)
         .build()
@@ -421,6 +434,7 @@ fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
     Ok(output)
 }
 
+/// Case converter for case-insensitive searches
 fn convert_case(string: &str, ignore_case: bool) -> String {
     match ignore_case {
         true => string.to_lowercase(),
@@ -428,6 +442,7 @@ fn convert_case(string: &str, ignore_case: bool) -> String {
     }
 }
 
+/// Sort matches into match types and pad the lines to aligned columns
 fn sort_and_pad_matches<'a>(
     cli: &Cli,
     raw_matches: String,
@@ -472,9 +487,11 @@ fn sort_and_pad_matches<'a>(
             ColumnsChoice::None => format!("{} ", name),
         };
 
+        // Handle case-insensitive, if requested
         let converted_search_term = &convert_case(&search_term, cli.ignore_case);
         let converted_name = &convert_case(&name, cli.ignore_case);
 
+        // Package names from channels are prepended with "nixos." or "nixpgks."
         match cli.experimental {
             true => {
                 if converted_name == converted_search_term {
@@ -508,6 +525,7 @@ fn sort_and_pad_matches<'a>(
     ));
 }
 
+/// Color the search term in different match types
 fn color_matches(
     cli: &Cli,
     sorted_padded_matches: (Vec<String>, Vec<String>, Vec<String>),
@@ -517,20 +535,22 @@ fn color_matches(
         sorted_padded_matches;
     let search_term = cli.search_term.as_ref().unwrap();
 
-    // Defining coloring styles for different match types
+    // Defining different colors for different match types
     let exact_color: UserColorSpec = format!("match:fg:{:?}", &cli.exact_color).parse()?;
     let direct_color: UserColorSpec = format!("match:fg:{:?}", &cli.direct_color).parse()?;
     let indirect_color: UserColorSpec = format!("match:fg:{:?}", &cli.indirect_color).parse()?;
 
+    // Font styles for match types
     let exact_style: UserColorSpec = "match:style:bold".parse()?;
     let direct_style: UserColorSpec = "match:style:bold".parse()?;
     let indirect_style: UserColorSpec = "match:style:bold".parse()?;
 
+    // Combining colors and styles to ColorSpecs
     let exact_color_specs = ColorSpecs::new(&[exact_color, exact_style]);
     let direct_color_specs = ColorSpecs::new(&[direct_color, direct_style]);
     let indirect_color_specs = ColorSpecs::new(&[indirect_color, indirect_style]);
 
-    // Create buffers to write colored output to
+    // Create buffers to write colored output into
     let bufwtr = BufferWriter::stdout(color_choice);
     let mut exact_buffer = bufwtr.buffer();
     let mut direct_buffer = bufwtr.buffer();
@@ -540,11 +560,9 @@ fn color_matches(
     let mut exact_printer = StandardBuilder::new()
         .color_specs(exact_color_specs)
         .build(&mut exact_buffer);
-
     let mut direct_printer = StandardBuilder::new()
         .color_specs(direct_color_specs)
         .build(&mut direct_buffer);
-
     let mut indirect_printer = StandardBuilder::new()
         .color_specs(indirect_color_specs)
         .build(&mut indirect_buffer);
@@ -554,7 +572,7 @@ fn color_matches(
         .case_insensitive(cli.ignore_case)
         .build(search_term)?;
 
-    // Matcher to find everything, so lines without matches are still printed.
+    // Matcher to find _everything_, so lines without matches are still printed.
     // This can happen if certain columns are missing.
     let matcher_all = RegexMatcherBuilder::new().build(".*")?;
 
@@ -594,6 +612,7 @@ fn color_matches(
     return Ok((exact_buffer, direct_buffer, indirect_buffer));
 }
 
+/// Print matches to screen in correct ordering
 fn print_matches(
     cli: &Cli,
     colored_matches: (Buffer, Buffer, Buffer),
@@ -624,7 +643,8 @@ fn print_matches(
     Ok(())
 }
 
-fn parse_json_to_cache(raw_output: &str) -> String {
+/// Parse package info from JSON to (NAME VERSION DESCRIPTION) lines
+fn parse_json_to_lines(raw_output: &str) -> String {
     // Load JSON package info into a HashMap
     let parsed: HashMap<String, Package> = serde_json::from_str(raw_output).unwrap();
 
@@ -639,13 +659,7 @@ fn parse_json_to_cache(raw_output: &str) -> String {
     lines.join("\n")
 }
 
-#[derive(Debug, Deserialize)]
-struct Package {
-    pname: String,
-    version: String,
-    description: String,
-}
-
+/// Fetch new package info and write to cache file
 fn refresh(
     experimental: bool,
     cache_folder: PathBuf,
@@ -670,14 +684,16 @@ fn refresh(
         str::from_utf8(&output.stderr).unwrap(),
     );
 
+    // Throw error if stderr looks bad
     for line in stderr.lines() {
         if !line.starts_with("evaluating") {
+            // ignore logging to stderr
             return Err(line.into());
         }
     }
 
     let cache_content = match experimental {
-        true => parse_json_to_cache(stdout),
+        true => parse_json_to_lines(stdout),
         false => stdout.to_string(),
     };
 
@@ -691,7 +707,7 @@ fn refresh(
         false => &cache_folder_path.join(PathBuf::from(cache_file)),
     };
 
-    // Write first to a tmp file, then persist (move) it to destination
+    // Atomic Writing: Write first to a tmp file, then persist (move) it to destination
     let tempfile = NamedTempFile::new_in(cache_folder_path)?;
     write!(&tempfile, "{}", cache_content)?;
 
@@ -745,6 +761,7 @@ fn main() -> ExitCode {
         }
     };
 
+    // Refresh cache with new info?
     if cli.refresh {
         log::info!("Refreshing cache");
         match refresh(
