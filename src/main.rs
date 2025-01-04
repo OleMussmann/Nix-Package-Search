@@ -440,13 +440,14 @@ fn sort_and_pad_matches<'a>(
     for line in raw_matches.lines() {
         let split_line: Vec<&str> = line.splitn(3, ' ').collect();
 
-        // Try to get a split_line element `.get()`,
-        // use &"" if missing `.unwrap_or(&"")`,
+        // Try to get a split_line element: `.get()`,
+        // use &"" if missing: `.unwrap_or(&"")`,
         // and append lengths `.len()` to *_lengths vectors.
         name_lengths.push(split_line.get(0).unwrap_or(&"").len());
         version_lengths.push(split_line.get(1).unwrap_or(&"").len());
     }
 
+    // Mininum cell size will be the largest contained string
     let name_padding = *name_lengths.iter().max().unwrap_or(&0);
     let version_padding = *version_lengths.iter().max().unwrap_or(&0);
 
@@ -500,28 +501,42 @@ fn sort_and_pad_matches<'a>(
         }
     }
 
-    return Ok((padded_matches_exact, padded_matches_direct, padded_matches_indirect))
+    return Ok((
+        padded_matches_exact,
+        padded_matches_direct,
+        padded_matches_indirect,
+    ));
 }
 
-fn color_matches (cli: &Cli, sorted_padded_matches: (Vec<String>, Vec<String>, Vec<String>), color_choice: termcolor::ColorChoice) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
-    let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) = sorted_padded_matches;
+fn color_matches(
+    cli: &Cli,
+    sorted_padded_matches: (Vec<String>, Vec<String>, Vec<String>),
+    color_choice: termcolor::ColorChoice,
+) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
+    let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) =
+        sorted_padded_matches;
     let search_term = cli.search_term.as_ref().unwrap();
 
+    // Defining coloring styles for different match types
     let exact_color: UserColorSpec = format!("match:fg:{:?}", &cli.exact_color).parse()?;
     let direct_color: UserColorSpec = format!("match:fg:{:?}", &cli.direct_color).parse()?;
     let indirect_color: UserColorSpec = format!("match:fg:{:?}", &cli.indirect_color).parse()?;
+
     let exact_style: UserColorSpec = "match:style:bold".parse()?;
     let direct_style: UserColorSpec = "match:style:bold".parse()?;
     let indirect_style: UserColorSpec = "match:style:bold".parse()?;
+
     let exact_color_specs = ColorSpecs::new(&[exact_color, exact_style]);
     let direct_color_specs = ColorSpecs::new(&[direct_color, direct_style]);
     let indirect_color_specs = ColorSpecs::new(&[indirect_color, indirect_style]);
 
+    // Create buffers to write colored output to
     let bufwtr = BufferWriter::stdout(color_choice);
     let mut exact_buffer = bufwtr.buffer();
     let mut direct_buffer = bufwtr.buffer();
     let mut indirect_buffer = bufwtr.buffer();
 
+    // Printers print to the above buffers
     let mut exact_printer = StandardBuilder::new()
         .color_specs(exact_color_specs)
         .build(&mut exact_buffer);
@@ -534,18 +549,23 @@ fn color_matches (cli: &Cli, sorted_padded_matches: (Vec<String>, Vec<String>, V
         .color_specs(indirect_color_specs)
         .build(&mut indirect_buffer);
 
+    // Matcher to color `search_term`
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cli.ignore_case)
         .build(search_term)?;
 
+    // Matcher to find everything, so lines without matches are still printed.
+    // This can happen if certain columns are missing.
     let matcher_all = RegexMatcherBuilder::new().build(".*")?;
 
+    // Let's have the top results at the bottom by default
     if !cli.flip {
         padded_matches_exact.reverse();
         padded_matches_direct.reverse();
         padded_matches_indirect.reverse();
     }
 
+    // Coloring and printing to buffers
     SearcherBuilder::new()
         .line_number(false)
         .build()
@@ -571,50 +591,52 @@ fn color_matches (cli: &Cli, sorted_padded_matches: (Vec<String>, Vec<String>, V
             indirect_printer.sink(&matcher),
         )?;
 
-    return Ok((exact_buffer, direct_buffer, indirect_buffer))
+    return Ok((exact_buffer, direct_buffer, indirect_buffer));
 }
 
-fn print_matches(cli: &Cli, colored_matches: (Buffer, Buffer, Buffer)) -> Result<(), Box<dyn Error>> {
+fn print_matches(
+    cli: &Cli,
+    colored_matches: (Buffer, Buffer, Buffer),
+) -> Result<(), Box<dyn Error>> {
     let (exact_buffer, direct_buffer, indirect_buffer) = colored_matches;
 
+    // Use newlines as separators, if requested
     let sep = match cli.separate {
-        true => "\n",
-        false => "",
+        true => "\n".to_string(),
+        false => "".to_string(),
     };
 
-    let out = match cli.flip {
-        true => {
-            String::from_utf8(exact_buffer.into_inner())?
-                + sep
-                + &String::from_utf8(direct_buffer.into_inner())?
-                + sep
-                + &String::from_utf8(indirect_buffer.into_inner())?
-        }
-        false => {
-            String::from_utf8(indirect_buffer.into_inner())?
-                + sep
-                + &String::from_utf8(direct_buffer.into_inner())?
-                + sep
-                + &String::from_utf8(exact_buffer.into_inner())?
-        }
-    };
+    // Assemble match type string segments
+    let mut out: Vec<String> = vec![
+        String::from_utf8(exact_buffer.into_inner())?,
+        sep.clone(),
+        String::from_utf8(direct_buffer.into_inner())?,
+        sep,
+        String::from_utf8(indirect_buffer.into_inner())?,
+    ];
 
-    println!("{}", &out.trim()); // BufferWriter introduces a newline for some reason
+    if !cli.flip {
+        out.reverse();
+    }
+
+    println!("{}", &out.join("").trim()); // BufferWriter introduces a newline that we need to trim for some reason
 
     Ok(())
 }
 
 fn parse_json_to_cache(raw_output: &str) -> String {
+    // Load JSON package info into a HashMap
     let parsed: HashMap<String, Package> = serde_json::from_str(raw_output).unwrap();
-    let mut result = vec![];
+
+    let mut lines = vec![];
     for (_, package) in parsed.into_iter() {
-        result.push(format!(
+        lines.push(format!(
             "{} {} {}",
             package.pname, package.version, package.description
         ));
     }
-    result.sort();
-    result.join("\n")
+    lines.sort();
+    lines.join("\n")
 }
 
 #[derive(Debug, Deserialize)]
@@ -643,15 +665,16 @@ fn refresh(
             .output()?,
     };
 
-    let (stdout, _stderr) = (
+    let (stdout, stderr) = (
         str::from_utf8(&output.stdout).unwrap(),
         str::from_utf8(&output.stderr).unwrap(),
     );
 
-    // experimental=true fails, why? TODO
-    //if stderr != "" {
-    //    return Err(stderr.into());
-    //}
+    for line in stderr.lines() {
+        if !line.starts_with("evaluating") {
+            return Err(line.into());
+        }
+    }
 
     let cache_content = match experimental {
         true => parse_json_to_cache(stdout),
@@ -698,18 +721,18 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    log::trace!("Log level set to: {}", log_level);
+    log::debug!("Log level set to: {}", log_level);
 
     // Set a supports-color override based on the variable passed in.
     let color_choice = match cli.color {
         clap::ColorChoice::Always => {
-            log::trace!("clap::ColorChoice set to Always");
+            log::debug!("clap::ColorChoice set to Always");
             termcolor::ColorChoice::Always
         }
         clap::ColorChoice::Auto => {
-            log::trace!("clap::ColorChoice request Auto");
+            log::debug!("clap::ColorChoice request Auto");
             if io::stdout().is_terminal() {
-                log::trace!("Running in terminal, clap::ColorChoice set to Auto");
+                log::debug!("Running in terminal, clap::ColorChoice set to Auto");
                 termcolor::ColorChoice::Auto
             } else {
                 log::warn!("Not running in terminal, ColorCoice forced to Never");
@@ -717,12 +740,13 @@ fn main() -> ExitCode {
             }
         }
         clap::ColorChoice::Never => {
-            log::trace!("clap::ColorChoice set to Never");
+            log::debug!("clap::ColorChoice set to Never");
             termcolor::ColorChoice::Never
         }
     };
 
     if cli.refresh {
+        log::info!("Refreshing cache");
         match refresh(
             cli.experimental,
             cli.cache_folder,
@@ -734,7 +758,7 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             Err(err) => {
-                log::error!("Can't refresh: {err}");
+                log::error!("Can't refresh cache: {err}");
                 return ExitCode::FAILURE;
             }
         }
