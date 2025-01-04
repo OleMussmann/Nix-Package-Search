@@ -206,7 +206,7 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps")?;
     cmd.arg("-i=false")
-        .arg("--experimental-cache-file=test.cache")
+        .arg("--cache-file=test.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")
@@ -243,7 +243,7 @@ nixos.MyTestPackageName      1.0.0  Test package description
 nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps")?;
-    cmd.arg("--experimental-cache-file=test.cache")
+    cmd.arg("--cache-file=test.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")

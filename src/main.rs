@@ -753,7 +753,10 @@ fn main() -> ExitCode {
         }
     }
 
-    let file_path: PathBuf = cli.cache_folder.join(cli.experimental_cache_file);
+    let file_path: PathBuf = match cli.experimental {
+        true => cli.cache_folder.join(cli.experimental_cache_file),
+        false => cli.cache_folder.join(cli.cache_file),
+    };
 
     let content = match fs::read_to_string(&file_path) {
         Ok(content) => content,
