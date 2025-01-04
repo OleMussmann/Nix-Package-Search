@@ -20,7 +20,7 @@ use std::{
     str,
 };
 use tempfile::NamedTempFile;
-use termcolor::BufferWriter;
+use termcolor::{Buffer, BufferWriter};
 
 /// Default settings for `nps`.
 ///
@@ -428,11 +428,10 @@ fn convert_case(string: &str, ignore_case: bool) -> String {
     }
 }
 
-fn sort_matches<'a>(
+fn sort_and_pad_matches<'a>(
     cli: &Cli,
     raw_matches: String,
-    color_choice: termcolor::ColorChoice,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(Vec<String>, Vec<String>, Vec<String>), Box<dyn Error>> {
     let search_term = cli.search_term.as_ref().unwrap();
 
     let mut name_lengths: Vec<usize> = vec![];
@@ -501,6 +500,13 @@ fn sort_matches<'a>(
         }
     }
 
+    return Ok((padded_matches_exact, padded_matches_direct, padded_matches_indirect))
+}
+
+fn color_matches (cli: &Cli, sorted_padded_matches: (Vec<String>, Vec<String>, Vec<String>), color_choice: termcolor::ColorChoice) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
+    let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) = sorted_padded_matches;
+    let search_term = cli.search_term.as_ref().unwrap();
+
     let exact_color: UserColorSpec = format!("match:fg:{:?}", &cli.exact_color).parse()?;
     let direct_color: UserColorSpec = format!("match:fg:{:?}", &cli.direct_color).parse()?;
     let indirect_color: UserColorSpec = format!("match:fg:{:?}", &cli.indirect_color).parse()?;
@@ -530,18 +536,14 @@ fn sort_matches<'a>(
 
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cli.ignore_case)
-        .build(&search_term)?;
+        .build(search_term)?;
 
     let matcher_all = RegexMatcherBuilder::new().build(".*")?;
 
-    match cli.flip {
-        false => {
-            //padded_matches.reverse()
-            padded_matches_exact.reverse();
-            padded_matches_direct.reverse();
-            padded_matches_indirect.reverse();
-        }
-        _ => (),
+    if !cli.flip {
+        padded_matches_exact.reverse();
+        padded_matches_direct.reverse();
+        padded_matches_indirect.reverse();
     }
 
     SearcherBuilder::new()
@@ -568,6 +570,12 @@ fn sort_matches<'a>(
             &padded_matches_indirect.join("\n").as_bytes(),
             indirect_printer.sink(&matcher),
         )?;
+
+    return Ok((exact_buffer, direct_buffer, indirect_buffer))
+}
+
+fn print_matches(cli: &Cli, colored_matches: (Buffer, Buffer, Buffer)) -> Result<(), Box<dyn Error>> {
+    let (exact_buffer, direct_buffer, indirect_buffer) = colored_matches;
 
     let sep = match cli.separate {
         true => "\n",
@@ -746,20 +754,33 @@ fn main() -> ExitCode {
     };
 
     let raw_matches = match get_matches(&cli, &content) {
-        Ok(matches) => matches,
+        Ok(raw_matches) => raw_matches,
         Err(err) => {
             log::error!("Can't get matches: {err}");
             return ExitCode::FAILURE;
         }
     };
 
-    match sort_matches(&cli, raw_matches, color_choice) {
-        Ok(result) => result,
+    let sorted_padded_matches = match sort_and_pad_matches(&cli, raw_matches) {
+        Ok(sorted_padded_matches) => sorted_padded_matches,
         Err(err) => {
             log::error!("Can't sort matches: {err}");
             return ExitCode::FAILURE;
         }
     };
+
+    let colored_matches = match color_matches(&cli, sorted_padded_matches, color_choice) {
+        Ok(colored_matches) => colored_matches,
+        Err(err) => {
+            log::error!("Can't color matches: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Err(err) = print_matches(&cli, colored_matches) {
+        log::error!("Can't print matches: {err}");
+        return ExitCode::FAILURE;
+    }
 
     return ExitCode::SUCCESS;
 }
