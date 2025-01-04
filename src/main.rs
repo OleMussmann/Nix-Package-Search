@@ -441,20 +441,11 @@ fn sort_matches<'a>(
     for line in raw_matches.lines() {
         let split_line: Vec<&str> = line.splitn(3, ' ').collect();
 
-        match split_line.len() {
-            0 => {
-                name_lengths.push(0);
-                version_lengths.push(0);
-            }
-            1 => {
-                name_lengths.push(split_line[0].len());
-                version_lengths.push(0);
-            }
-            _ => {
-                name_lengths.push(split_line[0].len());
-                version_lengths.push(split_line[1].len());
-            }
-        }
+        // Try to get a split_line element `.get()`,
+        // use &"" if missing `.unwrap_or(&"")`,
+        // and append lengths `.len()` to *_lengths vectors.
+        name_lengths.push(split_line.get(0).unwrap_or(&"").len());
+        version_lengths.push(split_line.get(1).unwrap_or(&"").len());
     }
 
     let name_padding = *name_lengths.iter().max().unwrap_or(&0);
@@ -465,15 +456,11 @@ fn sort_matches<'a>(
     let mut padded_matches_indirect: Vec<String> = vec![];
 
     for line in raw_matches.lines() {
-        let mut split_line: Vec<&str> = line.splitn(3, ' ').collect();
+        let split_line: Vec<&str> = line.splitn(3, ' ').collect();
 
-        while split_line.len() < 3 {
-            split_line.push(""); // fill empty fields
-        }
-
-        let name = split_line[0];
-        let version = split_line[1];
-        let description = split_line[2];
+        let name = split_line.get(0).unwrap_or(&"");
+        let version = split_line.get(1).unwrap_or(&"");
+        let description = split_line.get(2).unwrap_or(&"");
 
         let assembled_line = match &cli.columns {
             ColumnsChoice::All => format!(
