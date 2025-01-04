@@ -1,15 +1,30 @@
 use clap::builder::styling::{AnsiColor, Effects, Styles};
-use clap::Parser;
-use env_logger;
-use grep::{printer, regex, searcher};
+use clap::{ArgAction, Parser, ValueEnum};
+use env_logger::Builder;
+use grep::{
+    printer::{ColorSpecs, Standard, StandardBuilder, UserColorSpec},
+    regex::RegexMatcherBuilder,
+    searcher::SearcherBuilder,
+};
 use home;
-use log;
+use log::LevelFilter;
 use serde::Deserialize;
 use serde_json;
-use std::{io::IsTerminal, io::Write, process::Command, process::ExitCode};
-use tempfile;
-use termcolor;
+use std::{
+    collections::HashMap,
+    error::Error,
+    fs,
+    io::{self, IsTerminal, Write},
+    path::PathBuf,
+    process::{self, Command, ExitCode},
+    str,
+};
+use tempfile::NamedTempFile;
+use termcolor::BufferWriter;
 
+/// Default settings for `nps`.
+///
+/// They are also listed in the `-h`/`--help` commands.
 const DEFAULTS: Defaults = Defaults {
     cache_folder: ".nix-package-search", // /home/USER/...
     cache_file: "nps.dev.cache",
@@ -29,14 +44,14 @@ const DEFAULTS: Defaults = Defaults {
 /// Find SEARCH_TERM in available nix packages and sort results by relevance
 ///
 /// List up to three columns, the latter two being optional:
-/// PACKAGE_NAME  [PACKAGE_VERSION]  [PACKAGE_DESCRIPTION]
+/// PACKAGE_NAME  <PACKAGE_VERSION>  <PACKAGE_DESCRIPTION>
 ///
 /// Matches are sorted by type. Show 'exact' matches first, then 'direct' matches, and finally 'indirect' matches.
 ///
 ///   exact     SEARCH_TERM (in PACKAGE_NAME column)
 ///   direct    SEARCH_TERMbar (in PACKAGE_NAME column)
 ///   indirect  fooSEARCH_TERMbar (in any column)
-#[derive(clap::Parser, Debug)]
+#[derive(Parser, Debug)]
 #[command(
     author,
     version,
@@ -82,7 +97,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        action = clap::ArgAction::Count
+        action = ArgAction::Count
     )]
     debug: u8,
 
@@ -94,7 +109,7 @@ struct Cli {
         default_value_t = DEFAULTS.experimental,
         default_missing_value = "true",
         num_args = 0..=1,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL"
     )]
     experimental: bool,
@@ -107,7 +122,7 @@ struct Cli {
         default_value_t = DEFAULTS.flip,
         default_missing_value = "true",
         num_args = 0..=1,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_FLIP"
     )]
     flip: bool,
@@ -120,7 +135,7 @@ struct Cli {
         default_value_t = DEFAULTS.ignore_case,
         default_missing_value = "true",
         num_args = 0..=1,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_IGNORE_CASE"
     )]
     ignore_case: bool,
@@ -137,7 +152,7 @@ struct Cli {
         default_value_t = DEFAULTS.print_separator,
         default_missing_value = "true",
         num_args = 0..=1,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_PRINT_SEPARATOR"
     )]
     separate: bool,
@@ -155,10 +170,10 @@ struct Cli {
         require_equals = true,
         hide = true,
         default_value = home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string(),
-        value_parser = clap::value_parser!(std::path::PathBuf),
+        value_parser = clap::value_parser!(PathBuf),
         env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER"
     )]
-    cache_folder: std::path::PathBuf,
+    cache_folder: PathBuf,
 
     /// Cache file name
     #[arg(
@@ -166,10 +181,10 @@ struct Cli {
         require_equals = true,
         hide = true,
         default_value = DEFAULTS.cache_file,
-        value_parser = clap::value_parser!(std::path::PathBuf),
+        value_parser = clap::value_parser!(PathBuf),
         env = "NIX_PACKAGE_SEARCH_CACHE_FILE"
     )]
-    cache_file: std::path::PathBuf,
+    cache_file: PathBuf,
 
     /// Experimental cache file name
     #[arg(
@@ -177,10 +192,10 @@ struct Cli {
         require_equals = true,
         hide = true,
         default_value = DEFAULTS.experimental_cache_file,
-        value_parser = clap::value_parser!(std::path::PathBuf),
+        value_parser = clap::value_parser!(PathBuf),
         env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE"
     )]
-    experimental_cache_file: std::path::PathBuf,
+    experimental_cache_file: PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
@@ -189,7 +204,7 @@ struct Cli {
         hide = true,
         default_value_t = DEFAULTS.exact_color,
         value_enum,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_EXACT_COLOR"
     )]
     exact_color: Colors,
@@ -201,7 +216,7 @@ struct Cli {
         hide = true,
         default_value_t = DEFAULTS.direct_color,
         value_enum,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_DIRECT_COLOR"
     )]
     direct_color: Colors,
@@ -213,12 +228,15 @@ struct Cli {
         hide = true,
         default_value_t = DEFAULTS.indirect_color,
         value_enum,
-        action = clap::ArgAction::Set,
+        action = ArgAction::Set,
         env = "NIX_PACKAGE_SEARCH_INDIRECT_COLOR"
     )]
     indirect_color: Colors,
 }
 
+/// Help text for using environment variables for configuration.
+///
+/// Contains template items that still need to be replaced.
 static ENV_VAR_OPTIONS: &str = "
 CONFIGURATION
 
@@ -294,7 +312,7 @@ NIX_PACKAGE_SEARCH_IGNORE_CASE
 ";
 
 /// Column name options
-#[derive(Clone, Debug, clap::ValueEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 enum ColumnsChoice {
     /// Show all columns
     All,
@@ -306,7 +324,8 @@ enum ColumnsChoice {
     Description,
 }
 
-#[derive(Debug, Clone, clap::ValueEnum)]
+/// Allowed values for coloring output.
+#[derive(Debug, Clone, ValueEnum)]
 enum Colors {
     Black,
     Blue,
@@ -318,6 +337,7 @@ enum Colors {
     White,
 }
 
+/// Supply Styles for colored help output.
 fn styles() -> Styles {
     Styles::styled()
         .header(AnsiColor::Red.on_default() | Effects::BOLD)
@@ -326,6 +346,7 @@ fn styles() -> Styles {
         .placeholder(AnsiColor::Green.on_default())
 }
 
+/// Defines possible default settings.
 struct Defaults<'a> {
     cache_folder: &'a str,
     cache_file: &'a str,
@@ -342,6 +363,7 @@ struct Defaults<'a> {
     indirect_color: Colors,
 }
 
+/// Replace template items in long help text with default settings.
 fn option_help_text(help_text: &str) -> String {
     help_text
         .replace("{DEFAULT_EXPERIMENTAL}", &DEFAULTS.experimental.to_string())
@@ -383,12 +405,12 @@ fn get_matches(
     search_term: &str,
     content: &str,
     ignore_case: bool,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let matcher = regex::RegexMatcherBuilder::new()
+) -> Result<String, Box<dyn Error>> {
+    let matcher = RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
         .build(search_term)?;
-    let mut printer = printer::Standard::new_no_color(vec![]);
-    searcher::SearcherBuilder::new()
+    let mut printer = Standard::new_no_color(vec![]);
+    SearcherBuilder::new()
         .line_number(false)
         .build()
         .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))?;
@@ -599,10 +621,10 @@ struct Package {
 
 fn refresh(
     experimental: bool,
-    cache_folder: std::path::PathBuf,
-    cache_file: std::path::PathBuf,
-    experimental_cache_file: std::path::PathBuf,
-) -> Result<(usize, String), Box<dyn std::error::Error>> {
+    cache_folder: PathBuf,
+    cache_file: PathBuf,
+    experimental_cache_file: PathBuf,
+) -> Result<(usize, String), Box<dyn Error>> {
     let output = match experimental {
         true => Command::new("nix")
             .arg("search")
@@ -617,8 +639,8 @@ fn refresh(
     };
 
     let (stdout, _stderr) = (
-        std::str::from_utf8(&output.stdout).unwrap(),
-        std::str::from_utf8(&output.stderr).unwrap(),
+        str::from_utf8(&output.stdout).unwrap(),
+        str::from_utf8(&output.stderr).unwrap(),
     );
 
     // experimental=true fails, why? TODO
@@ -632,23 +654,17 @@ fn refresh(
     };
 
     // Create cache folder, if not exists
-    std::fs::create_dir_all(
-        home::home_dir()
-            .unwrap()
-            .join(std::path::PathBuf::from(&cache_folder)),
-    )?;
+    fs::create_dir_all(home::home_dir().unwrap().join(PathBuf::from(&cache_folder)))?;
 
     // Paths for cache folder and cache file
-    let cache_folder_path = home::home_dir()
-        .unwrap()
-        .join(std::path::PathBuf::from(cache_folder));
+    let cache_folder_path = home::home_dir().unwrap().join(PathBuf::from(cache_folder));
     let cache_file_path = match experimental {
-        true => &cache_folder_path.join(std::path::PathBuf::from(experimental_cache_file)),
-        false => &cache_folder_path.join(std::path::PathBuf::from(cache_file)),
+        true => &cache_folder_path.join(PathBuf::from(experimental_cache_file)),
+        false => &cache_folder_path.join(PathBuf::from(cache_file)),
     };
 
     // Write first to a tmp file, then persist (move) it to destination
-    let tempfile = tempfile::NamedTempFile::new_in(cache_folder_path)?;
+    let tempfile = NamedTempFile::new_in(cache_folder_path)?;
     write!(&tempfile, "{}", cache_content)?;
 
     tempfile.persist(cache_file_path)?;
@@ -663,18 +679,18 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let log_level = match cli.debug {
-        0 => log::LevelFilter::Error,
-        1 => log::LevelFilter::Warn,
-        2 => log::LevelFilter::Info,
-        3 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
+        0 => LevelFilter::Error,
+        1 => LevelFilter::Warn,
+        2 => LevelFilter::Info,
+        3 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
     };
 
-    env_logger::Builder::new().filter_level(log_level).init();
+    Builder::new().filter_level(log_level).init();
 
     if cli.debug > 4 {
         log::error!("Max log level is 4, e.g. -dddd");
-        std::process::exit(1)
+        process::exit(1)
     }
 
     log::trace!("Log level set to: {}", log_level);
@@ -687,7 +703,7 @@ fn main() -> ExitCode {
         }
         clap::ColorChoice::Auto => {
             log::trace!("clap::ColorChoice request Auto");
-            if std::io::stdout().is_terminal() {
+            if io::stdout().is_terminal() {
                 log::trace!("Running in terminal, clap::ColorChoice set to Auto");
                 termcolor::ColorChoice::Auto
             } else {
@@ -719,9 +735,9 @@ fn main() -> ExitCode {
         }
     }
 
-    let file_path: std::path::PathBuf = cli.cache_folder.join(cli.experimental_cache_file);
+    let file_path: PathBuf = cli.cache_folder.join(cli.experimental_cache_file);
 
-    let content = match std::fs::read_to_string(&file_path) {
+    let content = match fs::read_to_string(&file_path) {
         Ok(content) => content,
         Err(err) => {
             log::error!("Can't open file {}: {err}", &file_path.display());
