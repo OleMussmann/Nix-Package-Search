@@ -16,7 +16,7 @@ use std::{
     fs,
     io::{self, IsTerminal, Write},
     path::PathBuf,
-    process::{self, Command, ExitCode},
+    process::{Command, ExitCode},
     str,
 };
 use tempfile::NamedTempFile;
@@ -708,7 +708,7 @@ fn main() -> ExitCode {
 
     if cli.debug > 4 {
         log::error!("Max log level is 4, e.g. -dddd");
-        process::exit(1)
+        return ExitCode::FAILURE;
     }
 
     log::trace!("Log level set to: {}", log_level);
