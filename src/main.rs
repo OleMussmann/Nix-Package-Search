@@ -408,53 +408,6 @@ fn convert_case(string: &str, ignore_case: bool) -> String {
     }
 }
 
-#[derive(Debug)]
-struct Row {
-    name: String,
-    version: String,
-    description: String,
-}
-
-#[derive(Debug)]
-struct Matches {
-    exact: Vec<Row>,
-    direct: Vec<Row>,
-    indirect: Vec<Row>,
-}
-
-fn print_matches(
-    color_specs: printer::ColorSpecs,
-    color_choice: termcolor::ColorChoice,
-    joined_matches: String,
-    matcher: &regex::RegexMatcher,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut printer = printer::StandardBuilder::new()
-        .color_specs(color_specs)
-        .build(termcolor::StandardStream::stdout(color_choice));
-    searcher::SearcherBuilder::new()
-        .line_number(false)
-        .build()
-        .search_slice(matcher, &joined_matches.as_bytes(), printer.sink(&matcher))?;
-    Ok(())
-}
-
-fn assemble_string(
-    row: Row,
-    columns: &ColumnsChoice,
-    name_padding: usize,
-    version_padding: usize,
-) -> String {
-    match columns {
-        ColumnsChoice::All => format!(
-            "{:name_padding$}  {:version_padding$}  {}",
-            row.name, row.version, row.description
-        ),
-        ColumnsChoice::Version => format!("{:name_padding$}  {}", row.name, row.version),
-        ColumnsChoice::Description => format!("{:name_padding$}  {}", row.name, row.description),
-        ColumnsChoice::None => format!("{}", row.name),
-    }
-}
-
 fn sort_matches<'a>(
     raw_matches: String,
     color_choice: termcolor::ColorChoice,
@@ -466,156 +419,166 @@ fn sort_matches<'a>(
     exact_color: Colors,
     direct_color: Colors,
     indirect_color: Colors,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut matches = Matches {
-        exact: vec![],
-        direct: vec![],
-        indirect: vec![],
-    };
+) -> Result<(), Box<dyn Error>> {
     let mut name_lengths: Vec<usize> = vec![];
     let mut version_lengths: Vec<usize> = vec![];
 
     for line in raw_matches.lines() {
-        let mut split_line: Vec<&str> = line.splitn(3, ' ').collect();
-        while split_line.len() < 3 {
-            split_line.push(""); // fill empty fields
-        }
-        let (name, version, description) = (
-            split_line[0].to_string(),
-            split_line[1].to_string(),
-            split_line[2].to_string(),
-        );
+        let split_line: Vec<&str> = line.splitn(3, ' ').collect();
 
-        name_lengths.push(name.len());
-        version_lengths.push(version.len());
-
-        let converted_search_term = &convert_case(&search_term, ignore_case);
-        let converted_name = &convert_case(&name, ignore_case);
-
-        let row = Row {
-            name,
-            version,
-            description,
-        };
-
-        if converted_name == converted_search_term {
-            matches.exact.push(row);
-        } else if converted_name.starts_with(converted_search_term) {
-            matches.direct.push(row);
-        } else {
-            matches.indirect.push(row);
+        match split_line.len() {
+            0 => {
+                name_lengths.push(0);
+                version_lengths.push(0);
+            }
+            1 => {
+                name_lengths.push(split_line[0].len());
+                version_lengths.push(0);
+            }
+            _ => {
+                name_lengths.push(split_line[0].len());
+                version_lengths.push(split_line[1].len());
+            }
         }
     }
 
     let name_padding = *name_lengths.iter().max().unwrap_or(&0);
     let version_padding = *version_lengths.iter().max().unwrap_or(&0);
 
-    let mut exact: Vec<String> = vec![];
-    let mut direct: Vec<String> = vec![];
-    let mut indirect: Vec<String> = vec![];
+    let mut padded_matches_exact: Vec<String> = vec![];
+    let mut padded_matches_direct: Vec<String> = vec![];
+    let mut padded_matches_indirect: Vec<String> = vec![];
 
-    for row in matches.exact {
-        exact.push(assemble_string(
-            row,
-            &columns,
-            name_padding,
-            version_padding,
-        ));
+    for line in raw_matches.lines() {
+        let mut split_line: Vec<&str> = line.splitn(3, ' ').collect();
+
+        while split_line.len() < 3 {
+            split_line.push(""); // fill empty fields
+        }
+
+        let name = split_line[0];
+        let version = split_line[1];
+        let description = split_line[2];
+
+        let assembled_line = match columns {
+            ColumnsChoice::All => format!(
+                "{:name_padding$}  {:version_padding$}  {}",
+                name, version, description
+            ),
+            ColumnsChoice::Version => format!("{:name_padding$}  {}", name, version),
+            ColumnsChoice::Description => format!("{:name_padding$}  {}", name, description),
+            ColumnsChoice::None => format!("{} ", name),
+        };
+
+        let converted_search_term = &convert_case(&search_term, ignore_case);
+        let converted_name = &convert_case(&name, ignore_case);
+
+        if converted_name == converted_search_term {
+            padded_matches_exact.push(assembled_line);
+        } else if converted_name.starts_with(converted_search_term) {
+            padded_matches_direct.push(assembled_line);
+        } else {
+            padded_matches_indirect.push(assembled_line);
+        }
     }
 
-    for row in matches.direct {
-        direct.push(assemble_string(
-            row,
-            &columns,
-            name_padding,
-            version_padding,
-        ));
-    }
+    let exact_color: UserColorSpec = format!("match:fg:{:?}", exact_color).parse()?;
+    let direct_color: UserColorSpec = format!("match:fg:{:?}", direct_color).parse()?;
+    let indirect_color: UserColorSpec = format!("match:fg:{:?}", indirect_color).parse()?;
+    let exact_style: UserColorSpec = "match:style:bold".parse()?;
+    let direct_style: UserColorSpec = "match:style:bold".parse()?;
+    let indirect_style: UserColorSpec = "match:style:bold".parse()?;
+    let exact_color_specs = ColorSpecs::new(&[exact_color, exact_style]);
+    let direct_color_specs = ColorSpecs::new(&[direct_color, direct_style]);
+    let indirect_color_specs = ColorSpecs::new(&[indirect_color, indirect_style]);
 
-    for row in matches.indirect {
-        indirect.push(assemble_string(
-            row,
-            &columns,
-            name_padding,
-            version_padding,
-        ));
-    }
+    let bufwtr = BufferWriter::stdout(color_choice);
+    let mut exact_buffer = bufwtr.buffer();
+    let mut direct_buffer = bufwtr.buffer();
+    let mut indirect_buffer = bufwtr.buffer();
 
-    if flip == false {
-        exact.reverse();
-        direct.reverse();
-        indirect.reverse();
-    }
+    let mut exact_printer = StandardBuilder::new()
+        .color_specs(exact_color_specs)
+        .build(&mut exact_buffer);
 
-    let matcher = regex::RegexMatcherBuilder::new()
+    let mut direct_printer = StandardBuilder::new()
+        .color_specs(direct_color_specs)
+        .build(&mut direct_buffer);
+
+    let mut indirect_printer = StandardBuilder::new()
+        .color_specs(indirect_color_specs)
+        .build(&mut indirect_buffer);
+
+    let matcher = RegexMatcherBuilder::new()
         .case_insensitive(ignore_case)
-        // Search for "search_term" OR any first character "^.", so we don't drop lines during the
-        // coloring. A bit hacky. Not that we would want that, but I have no clue why the first
-        // char char is not colored as a regex match as well. Magic?
-        // TODO make less hacky
-        .build(&format!("({}|^.)", search_term))?;
+        .build(&search_term)?;
 
-    let exact_color: printer::UserColorSpec = format!("match:fg:{:?}", exact_color).parse()?;
-    let direct_color: printer::UserColorSpec = format!("match:fg:{:?}", direct_color).parse()?;
-    let indirect_color: printer::UserColorSpec =
-        format!("match:fg:{:?}", indirect_color).parse()?;
-    let exact_style: printer::UserColorSpec = "match:style:bold".parse()?;
-    let direct_style: printer::UserColorSpec = "match:style:bold".parse()?;
-    let indirect_style: printer::UserColorSpec = "match:style:bold".parse()?;
-    let exact_color_specs = printer::ColorSpecs::new(&[exact_color, exact_style]);
-    let direct_color_specs = printer::ColorSpecs::new(&[direct_color, direct_style]);
-    let indirect_color_specs = printer::ColorSpecs::new(&[indirect_color, indirect_style]);
+    let matcher_all = RegexMatcherBuilder::new().build(".*")?;
 
     match flip {
+        false => {
+            //padded_matches.reverse()
+            padded_matches_exact.reverse();
+            padded_matches_direct.reverse();
+            padded_matches_indirect.reverse();
+        }
+        _ => (),
+    }
+
+    SearcherBuilder::new()
+        .line_number(false)
+        .build()
+        .search_slice(
+            &matcher_all,
+            &padded_matches_exact.join("\n").as_bytes(),
+            exact_printer.sink(&matcher),
+        )?;
+    SearcherBuilder::new()
+        .line_number(false)
+        .build()
+        .search_slice(
+            &matcher_all,
+            &padded_matches_direct.join("\n").as_bytes(),
+            direct_printer.sink(&matcher),
+        )?;
+    SearcherBuilder::new()
+        .line_number(false)
+        .build()
+        .search_slice(
+            &matcher_all,
+            &padded_matches_indirect.join("\n").as_bytes(),
+            indirect_printer.sink(&matcher),
+        )?;
+
+    let sep = match separate {
+        true => "\n",
+        false => "",
+    };
+
+    let out = match flip {
         true => {
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
-            if separate {
-                println!();
-            }
-            print_matches(
-                direct_color_specs,
-                color_choice,
-                direct.join("\n"),
-                &matcher,
-            )?;
-            if separate {
-                println!();
-            }
-            print_matches(
-                indirect_color_specs,
-                color_choice,
-                indirect.join("\n"),
-                &matcher,
-            )?;
+            String::from_utf8(exact_buffer.into_inner())?
+                + sep
+                + &String::from_utf8(direct_buffer.into_inner())?
+                + sep
+                + &String::from_utf8(indirect_buffer.into_inner())?
         }
         false => {
-            print_matches(
-                indirect_color_specs,
-                color_choice,
-                indirect.join("\n"),
-                &matcher,
-            )?;
-            if separate {
-                println!();
-            }
-            print_matches(
-                direct_color_specs,
-                color_choice,
-                direct.join("\n"),
-                &matcher,
-            )?;
-            if separate {
-                println!();
-            }
-            print_matches(exact_color_specs, color_choice, exact.join("\n"), &matcher)?;
+            String::from_utf8(indirect_buffer.into_inner())?
+                + sep
+                + &String::from_utf8(direct_buffer.into_inner())?
+                + sep
+                + &String::from_utf8(exact_buffer.into_inner())?
         }
-    }
+    };
+
+    println!("{}", &out.trim()); // BufferWriter introduces a newline for some reason
+
     Ok(())
 }
 
 fn parse_json_to_cache(raw_output: &str) -> String {
-    let parsed: std::collections::HashMap<String, Package> =
-        serde_json::from_str(raw_output).unwrap();
+    let parsed: HashMap<String, Package> = serde_json::from_str(raw_output).unwrap();
     let mut result = vec![];
     for (_, package) in parsed.into_iter() {
         result.push(format!(
