@@ -181,3 +181,77 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
 
     Ok(())
 }
+
+#[test]
+fn test_output_case_sensitive() -> Result<(), Box<dyn std::error::Error>> {
+    // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
+    // the same time.
+    let desired_output =
+        "nixos.MatchMyDescription1    9.8.7  Also here MyTestPackageName appears in my description
+nixos.MatchMyDescription     a.b.c  MyTestPackageName appears in my description
+nixos.mytestpackageName3     3.2.1  More test package description, now with MyTestPackageName
+nixpkgs.MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
+nixpkgs.MatchMyDescription   a.b.c  MyTestPackageName appears in my description
+nixpkgs.mytestpackageName3   3.2.1  More test package description, now with MyTestPackageName
+
+nixos.MyTestPackageName3     1.2.1  More test package description
+nixos.MyTestPackageName2     1.0.1  
+nixos.MyTestPackageName1     1.1.0  Another test package description
+nixpkgs.MyTestPackageName3   1.2.1  More test package description
+nixpkgs.MyTestPackageName2   1.0.1  
+nixpkgs.MyTestPackageName1   1.1.0  Another test package description
+
+nixos.MyTestPackageName      1.0.0  Test package description
+nixpkgs.MyTestPackageName    1.0.0  Test package description
+";
+    let mut cmd = Command::cargo_bin("nps")?;
+    cmd.arg("-i=false")
+        .arg("--experimental-cache-file=test.cache")
+        .arg("--cache-folder=tests/")
+        .arg("--experimental=false")
+        .arg("MyTestPackageName")
+        .env_clear(); // remove env vars
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::diff(desired_output));
+
+    Ok(())
+}
+
+#[test]
+fn test_output() -> Result<(), Box<dyn std::error::Error>> {
+    // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
+    // the same time.
+    let desired_output = "nixos.MatchMyDescription2    9.8.7  mytestpackageName appears in my description with different capitalization
+nixos.MatchMyDescription1    9.8.7  Also here MyTestPackageName appears in my description
+nixos.MatchMyDescription     a.b.c  MyTestPackageName appears in my description
+nixpkgs.MatchMyDescription2  9.8.7  mytestpackageName appears in my description with different capitalization
+nixpkgs.MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
+nixpkgs.MatchMyDescription   a.b.c  MyTestPackageName appears in my description
+
+nixos.mytestpackageName3     3.2.1  More test package description, now with MyTestPackageName
+nixos.MyTestPackageName3     1.2.1  More test package description
+nixos.MyTestPackageName2     1.0.1  
+nixos.MyTestPackageName1     1.1.0  Another test package description
+nixpkgs.mytestpackageName3   3.2.1  More test package description, now with MyTestPackageName
+nixpkgs.MyTestPackageName3   1.2.1  More test package description
+nixpkgs.MyTestPackageName2   1.0.1  
+nixpkgs.MyTestPackageName1   1.1.0  Another test package description
+
+nixos.MyTestPackageName      1.0.0  Test package description
+nixpkgs.MyTestPackageName    1.0.0  Test package description
+";
+    let mut cmd = Command::cargo_bin("nps")?;
+    cmd.arg("--experimental-cache-file=test.cache")
+        .arg("--cache-folder=tests/")
+        .arg("--experimental=false")
+        .arg("MyTestPackageName")
+        .env_clear(); // remove env vars
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::diff(desired_output));
+
+    Ok(())
+}
