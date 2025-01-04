@@ -340,7 +340,7 @@ enum Colors {
 /// Format to parse JSON package info into
 #[derive(Debug, Deserialize)]
 struct Package {
-    pname: String,
+    // we are not using `pname`
     version: String,
     description: String,
 }
@@ -649,10 +649,16 @@ fn parse_json_to_lines(raw_output: &str) -> String {
     let parsed: HashMap<String, Package> = serde_json::from_str(raw_output).unwrap();
 
     let mut lines = vec![];
-    for (_, package) in parsed.into_iter() {
+    for (name_string, package) in parsed.into_iter() {
+        // `name_string` is, for example, "legacyPackages.x86_64-linux.auctex"
+        // Keep everything after the second '.' to get the package "name".
+        // This is different from package.pname, which contains the name
+        // of the executable, which can be different from the package name.
+        let name_vec: Vec<&str> = name_string.splitn(3, '.').collect();
+        let name = name_vec.get(2).unwrap();
         lines.push(format!(
             "{} {} {}",
-            package.pname, package.version, package.description
+            name, package.version, package.description
         ));
     }
     lines.sort();
