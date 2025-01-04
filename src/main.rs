@@ -438,6 +438,7 @@ fn sort_matches<'a>(
     flip: bool,
     ignore_case: bool,
     separate: bool,
+    experimental: bool,
     exact_color: Colors,
     direct_color: Colors,
     indirect_color: Colors,
@@ -495,12 +496,29 @@ fn sort_matches<'a>(
         let converted_search_term = &convert_case(&search_term, ignore_case);
         let converted_name = &convert_case(&name, ignore_case);
 
-        if converted_name == converted_search_term {
-            padded_matches_exact.push(assembled_line);
-        } else if converted_name.starts_with(converted_search_term) {
-            padded_matches_direct.push(assembled_line);
-        } else {
-            padded_matches_indirect.push(assembled_line);
+        match experimental {
+            true => {
+                if converted_name == converted_search_term {
+                    padded_matches_exact.push(assembled_line);
+                } else if converted_name.starts_with(converted_search_term) {
+                    padded_matches_direct.push(assembled_line);
+                } else {
+                    padded_matches_indirect.push(assembled_line);
+                }
+            }
+            false => {
+                if converted_name == &("nixos.".to_owned() + converted_search_term)
+                    || converted_name == &("nixpkgs.".to_owned() + converted_search_term)
+                {
+                    padded_matches_exact.push(assembled_line);
+                } else if converted_name.starts_with(&("nixos.".to_owned() + converted_search_term))
+                    || converted_name.starts_with(&("nixpkgs.".to_owned() + converted_search_term))
+                {
+                    padded_matches_direct.push(assembled_line);
+                } else {
+                    padded_matches_indirect.push(assembled_line);
+                }
+            }
         }
     }
 
@@ -765,6 +783,7 @@ fn main() -> ExitCode {
         cli.flip,
         cli.ignore_case,
         cli.separate,
+        cli.experimental,
         cli.exact_color,
         cli.direct_color,
         cli.indirect_color,

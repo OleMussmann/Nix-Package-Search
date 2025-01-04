@@ -1,0 +1,19 @@
+nixpkgs.MyTestPackageName 1.0.0 Test package description
+nixpkgs.MyTestPackageName1 1.1.0 Another test package description
+nixpkgs.MyTestPackageName2 1.0.1
+nixpkgs.MyTestPackageName3 1.2.1 More test package description
+nixpkgs.mytestpackageName3 3.2.1 More test package description, now with MyTestPackageName
+nixpkgs.DoNotMatchThisPackage 0.0.0 I have a description as well
+nixpkgs.MatchMyDescription a.b.c MyTestPackageName appears in my description
+nixpkgs.MatchMyDescription1 9.8.7 Also here MyTestPackageName appears in my description
+nixpkgs.MatchMyDescription2 9.8.7 mytestpackageName appears in my description with different capitalization
+
+nixos.MyTestPackageName 1.0.0 Test package description
+nixos.MyTestPackageName1 1.1.0 Another test package description
+nixos.MyTestPackageName2 1.0.1
+nixos.MyTestPackageName3 1.2.1 More test package description
+nixos.mytestpackageName3 3.2.1 More test package description, now with MyTestPackageName
+nixos.DoNotMatchThisPackage 0.0.0 I have a description as well
+nixos.MatchMyDescription a.b.c MyTestPackageName appears in my description
+nixos.MatchMyDescription1 9.8.7 Also here MyTestPackageName appears in my description
+nixos.MatchMyDescription2 9.8.7 mytestpackageName appears in my description with different capitalization
