@@ -401,13 +401,11 @@ fn option_help_text(help_text: &str) -> String {
         )
 }
 
-fn get_matches(
-    search_term: &str,
-    content: &str,
-    ignore_case: bool,
-) -> Result<String, Box<dyn Error>> {
+fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
+    let search_term = cli.search_term.as_ref().unwrap();
+
     let matcher = RegexMatcherBuilder::new()
-        .case_insensitive(ignore_case)
+        .case_insensitive(cli.ignore_case)
         .build(search_term)?;
     let mut printer = Standard::new_no_color(vec![]);
     SearcherBuilder::new()
@@ -431,18 +429,12 @@ fn convert_case(string: &str, ignore_case: bool) -> String {
 }
 
 fn sort_matches<'a>(
+    cli: &Cli,
     raw_matches: String,
     color_choice: termcolor::ColorChoice,
-    search_term: String,
-    columns: ColumnsChoice,
-    flip: bool,
-    ignore_case: bool,
-    separate: bool,
-    experimental: bool,
-    exact_color: Colors,
-    direct_color: Colors,
-    indirect_color: Colors,
 ) -> Result<(), Box<dyn Error>> {
+    let search_term = cli.search_term.as_ref().unwrap();
+
     let mut name_lengths: Vec<usize> = vec![];
     let mut version_lengths: Vec<usize> = vec![];
 
@@ -483,7 +475,7 @@ fn sort_matches<'a>(
         let version = split_line[1];
         let description = split_line[2];
 
-        let assembled_line = match columns {
+        let assembled_line = match &cli.columns {
             ColumnsChoice::All => format!(
                 "{:name_padding$}  {:version_padding$}  {}",
                 name, version, description
@@ -493,10 +485,10 @@ fn sort_matches<'a>(
             ColumnsChoice::None => format!("{} ", name),
         };
 
-        let converted_search_term = &convert_case(&search_term, ignore_case);
-        let converted_name = &convert_case(&name, ignore_case);
+        let converted_search_term = &convert_case(&search_term, cli.ignore_case);
+        let converted_name = &convert_case(&name, cli.ignore_case);
 
-        match experimental {
+        match cli.experimental {
             true => {
                 if converted_name == converted_search_term {
                     padded_matches_exact.push(assembled_line);
@@ -522,9 +514,9 @@ fn sort_matches<'a>(
         }
     }
 
-    let exact_color: UserColorSpec = format!("match:fg:{:?}", exact_color).parse()?;
-    let direct_color: UserColorSpec = format!("match:fg:{:?}", direct_color).parse()?;
-    let indirect_color: UserColorSpec = format!("match:fg:{:?}", indirect_color).parse()?;
+    let exact_color: UserColorSpec = format!("match:fg:{:?}", &cli.exact_color).parse()?;
+    let direct_color: UserColorSpec = format!("match:fg:{:?}", &cli.direct_color).parse()?;
+    let indirect_color: UserColorSpec = format!("match:fg:{:?}", &cli.indirect_color).parse()?;
     let exact_style: UserColorSpec = "match:style:bold".parse()?;
     let direct_style: UserColorSpec = "match:style:bold".parse()?;
     let indirect_style: UserColorSpec = "match:style:bold".parse()?;
@@ -550,12 +542,12 @@ fn sort_matches<'a>(
         .build(&mut indirect_buffer);
 
     let matcher = RegexMatcherBuilder::new()
-        .case_insensitive(ignore_case)
+        .case_insensitive(cli.ignore_case)
         .build(&search_term)?;
 
     let matcher_all = RegexMatcherBuilder::new().build(".*")?;
 
-    match flip {
+    match cli.flip {
         false => {
             //padded_matches.reverse()
             padded_matches_exact.reverse();
@@ -590,12 +582,12 @@ fn sort_matches<'a>(
             indirect_printer.sink(&matcher),
         )?;
 
-    let sep = match separate {
+    let sep = match cli.separate {
         true => "\n",
         false => "",
     };
 
-    let out = match flip {
+    let out = match cli.flip {
         true => {
             String::from_utf8(exact_buffer.into_inner())?
                 + sep
@@ -754,8 +746,8 @@ fn main() -> ExitCode {
     }
 
     let file_path: PathBuf = match cli.experimental {
-        true => cli.cache_folder.join(cli.experimental_cache_file),
-        false => cli.cache_folder.join(cli.cache_file),
+        true => cli.cache_folder.join(&cli.experimental_cache_file),
+        false => cli.cache_folder.join(&cli.cache_file),
     };
 
     let content = match fs::read_to_string(&file_path) {
@@ -766,11 +758,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let raw_matches = match get_matches(
-        &cli.search_term.as_ref().unwrap(),
-        &content,
-        cli.ignore_case,
-    ) {
+    let raw_matches = match get_matches(&cli, &content) {
         Ok(matches) => matches,
         Err(err) => {
             log::error!("Can't get matches: {err}");
@@ -778,19 +766,7 @@ fn main() -> ExitCode {
         }
     };
 
-    match sort_matches(
-        raw_matches,
-        color_choice,
-        cli.search_term.unwrap(),
-        cli.columns,
-        cli.flip,
-        cli.ignore_case,
-        cli.separate,
-        cli.experimental,
-        cli.exact_color,
-        cli.direct_color,
-        cli.indirect_color,
-    ) {
+    match sort_matches(&cli, raw_matches, color_choice) {
         Ok(result) => result,
         Err(err) => {
             log::error!("Can't sort matches: {err}");
