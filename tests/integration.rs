@@ -2,7 +2,7 @@ use assert_cmd::{assert::OutputAssertExt, cargo::CommandCargoExt};
 use predicates::prelude::predicate;
 use regex::Regex;
 use std::{fs, process::Command};
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::TempDir;
 
 #[test]
 fn short_help() {
