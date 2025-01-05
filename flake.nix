@@ -22,7 +22,8 @@
 
       devShells.default = with pkgs; mkShell {
         buildInputs = [
-            hyperfine
+            cargo-tarpaulin  # code coverage
+            hyperfine  # benchmarking
             rust-bin.beta.latest.default
         ];
         shellHook = ''

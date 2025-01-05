@@ -1,10 +1,12 @@
 use assert_cmd::{assert::OutputAssertExt, cargo::CommandCargoExt};
 use predicates::prelude::predicate;
-use std::process::Command;
+use regex::Regex;
+use std::{fs, process::Command};
+use tempfile::{NamedTempFile, TempDir};
 
 #[test]
-fn test_short_help() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("nps")?;
+fn short_help() {
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-h");
     cmd.assert().success().stdout(predicate::str::contains(
         "Find SEARCH_TERM in available nix packages and sort results by relevance",
@@ -12,13 +14,11 @@ fn test_short_help() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("experimental"));
-
-    Ok(())
 }
 
 #[test]
-fn test_long_help() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("nps")?;
+fn long_help() {
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("--help");
     cmd.assert().success().stdout(predicate::str::contains(
         "Use up to four times for increased verbosity",
@@ -26,23 +26,30 @@ fn test_long_help() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Flip the order of matches?"));
-
-    Ok(())
 }
 
 #[test]
-fn test_no_search_term() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("nps")?;
+fn no_search_term() {
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.assert().failure().stderr(predicate::str::contains(
         "error: the following required arguments were not provided:
   <SEARCH_TERM>",
     ));
-
-    Ok(())
 }
 
 #[test]
-fn test_experimental_output_case_sensitive() -> Result<(), Box<dyn std::error::Error>> {
+fn too_much_debug() {
+    let mut cmd = Command::cargo_bin("nps").unwrap();
+    cmd.arg("-ddddd")
+        .arg("search_term")
+        .env_clear();
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Max log level is 4",
+    ));
+}
+
+#[test]
+fn experimental_output_case_sensitive() {
     let desired_output =
         "MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
@@ -54,7 +61,7 @@ MyTestPackageName1   1.1.0  Another test package description
 
 MyTestPackageName    1.0.0  Test package description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
@@ -65,12 +72,10 @@ MyTestPackageName    1.0.0  Test package description
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_experimental_output() -> Result<(), Box<dyn std::error::Error>> {
+fn experimental_output() {
     let desired_output = "MatchMyDescription2  9.8.7  mytestpackageName appears in my description with different capitalization
 MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
@@ -82,7 +87,7 @@ MyTestPackageName1   1.1.0  Another test package description
 
 MyTestPackageName    1.0.0  Test package description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
@@ -92,13 +97,11 @@ MyTestPackageName    1.0.0  Test package description
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_experimental_output_flip_by_command_line_no_equals(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn experimental_output_flip_by_command_line_no_equals(
+) {
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -109,7 +112,7 @@ mytestpackageName3   3.2.1  More test package description, now with MyTestPackag
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
 MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("-f")
         .arg("--experimental-cache-file=test.experimental.cache")
@@ -121,13 +124,10 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_experimental_output_flip_by_command_line_equals() -> Result<(), Box<dyn std::error::Error>>
-{
+fn experimental_output_flip_by_command_line_equals() {
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -138,7 +138,7 @@ mytestpackageName3   3.2.1  More test package description, now with MyTestPackag
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
 MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("-f=true")
         .arg("--experimental-cache-file=test.experimental.cache")
@@ -150,12 +150,10 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_experimental_output_flip_by_env_var() -> Result<(), Box<dyn std::error::Error>> {
+fn experimental_output_flip_by_env_var() {
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -166,7 +164,7 @@ mytestpackageName3   3.2.1  More test package description, now with MyTestPackag
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
 MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false");
     cmd.arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
@@ -178,12 +176,10 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_output_case_sensitive() -> Result<(), Box<dyn std::error::Error>> {
+fn output_case_sensitive() {
     // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
     // the same time.
     let desired_output =
@@ -204,7 +200,7 @@ nixpkgs.MyTestPackageName1   1.1.0  Another test package description
 nixos.MyTestPackageName      1.0.0  Test package description
 nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("--cache-file=test.cache")
         .arg("--cache-folder=tests/")
@@ -215,12 +211,10 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
-
-    Ok(())
 }
 
 #[test]
-fn test_output() -> Result<(), Box<dyn std::error::Error>> {
+fn output() {
     // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
     // the same time.
     let desired_output = "nixos.MatchMyDescription2    9.8.7  mytestpackageName appears in my description with different capitalization
@@ -242,7 +236,7 @@ nixpkgs.MyTestPackageName1   1.1.0  Another test package description
 nixos.MyTestPackageName      1.0.0  Test package description
 nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
-    let mut cmd = Command::cargo_bin("nps")?;
+    let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("--cache-file=test.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=false")
@@ -252,6 +246,55 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
     cmd.assert()
         .success()
         .stdout(predicate::str::diff(desired_output));
+}
 
-    Ok(())
+// The following tests are not run by default. Use
+// cargo test -- --ignored
+// to execute them.
+#[test]
+#[ignore]
+/// Testing the creation of new caches. This requires internet connection, so
+/// it is disabled by default.
+fn cache_creation() {
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path().to_owned();
+    let temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
+    let temp_file_name = temp_file.path().file_name().unwrap();
+
+    let mut cmd = Command::cargo_bin("nps").unwrap();
+    cmd.arg(format!("--cache-file={}", &temp_file_name.to_str().unwrap()))
+        .arg(format!("--cache-folder={}", &temp_path.display()))
+        .arg("--experimental=false")
+        .arg("-r")
+        .env_clear(); // remove env vars
+
+    cmd.assert().success();
+
+    let cache_content = fs::read_to_string(&temp_file.path()).unwrap();
+    let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
+    assert!(re.is_match(&cache_content));
+}
+
+#[test]
+#[ignore]
+/// Testing the creation of new caches. This requires internet connection, so
+/// it is disabled by default.
+fn experimental_cache_creation() -> () {
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path().to_owned();
+    let temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
+    let temp_file_name = temp_file.path().file_name().unwrap();
+
+    let mut cmd = Command::cargo_bin("nps").unwrap();
+    cmd.arg(format!("--experimental-cache-file={}", &temp_file_name.to_str().unwrap()))
+        .arg(format!("--cache-folder={}", &temp_path.display()))
+        .arg("--experimental=true")
+        .arg("-r")
+        .env_clear(); // remove env vars
+
+    cmd.assert().success();
+
+    let cache_content = fs::read_to_string(&temp_file.path()).unwrap();
+    let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
+    assert!(re.is_match(&cache_content));
 }

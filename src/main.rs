@@ -831,3 +831,135 @@ fn main() -> ExitCode {
 
     return ExitCode::SUCCESS;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_matches () {
+        let cli = Cli::try_parse_from(vec!["nps", "second"]).unwrap();
+        let content = "\
+            the first line\n\
+            the second line\n\
+            the third line\
+            ";
+        let matches = get_matches(&cli, content).unwrap();
+
+        assert_eq!(matches, "the second line\n");
+    }
+
+    #[test]
+    fn test_convert_case () {
+        let test_string = "abCDef";
+
+        assert_eq!(convert_case(test_string, false), "abCDef");
+        assert_eq!(convert_case(test_string, true), "abcdef");
+    }
+
+    #[test]
+    fn test_sort_and_pad_matches () {
+        let cli_all_columns = Cli::try_parse_from(vec!["nps", "mypackage"]).unwrap();
+        let cli_no_other_columns = Cli::try_parse_from(vec!["nps", "-C=none", "mypackage"]).unwrap();
+        let cli_version_column = Cli::try_parse_from(vec!["nps", "-C=version", "mypackage"]).unwrap();
+        let cli_description_column = Cli::try_parse_from(vec!["nps", "-C=description", "mypackage"]).unwrap();
+        let matches = "\
+            mypackage v1 my package description\n\
+            myotherpackage v2 has description as well\n\
+            mypackage_extension v3 words words\n\
+            mypackage_extension_2 v4 words words w0rds\n\
+            mylastpackage v5.0.0 is not mypackage\
+            ".to_string();
+
+        let exact_matches_all_columns = "\
+            mypackage              v1      my package description\
+            ";
+        let direct_matches_all_columns = "\
+            mypackage_extension    v3      words words\n\
+            mypackage_extension_2  v4      words words w0rds\
+            ";
+        let indirect_matches_all_columns = "\
+            myotherpackage         v2      has description as well\n\
+            mylastpackage          v5.0.0  is not mypackage\
+            ";
+
+        let exact_matches_no_other_columns = "\
+            mypackage \
+            ";
+        let direct_matches_no_other_columns = "\
+            mypackage_extension \n\
+            mypackage_extension_2 \
+            ";
+        let indirect_matches_no_other_columns = "\
+            myotherpackage \n\
+            mylastpackage \
+            ";
+
+        let exact_matches_version_column = "\
+            mypackage              v1\
+            ";
+        let direct_matches_version_column = "\
+            mypackage_extension    v3\n\
+            mypackage_extension_2  v4\
+            ";
+        let indirect_matches_version_column = "\
+            myotherpackage         v2\n\
+            mylastpackage          v5.0.0\
+            ";
+
+        let exact_matches_description_column = "\
+            mypackage              my package description\
+            ";
+        let direct_matches_description_column = "\
+            mypackage_extension    words words\n\
+            mypackage_extension_2  words words w0rds\
+            ";
+        let indirect_matches_description_column = "\
+            myotherpackage         has description as well\n\
+            mylastpackage          is not mypackage\
+            ";
+
+        let sorted_and_padded_all_columns = sort_and_pad_matches(&cli_all_columns, matches.clone()).unwrap();
+        let sorted_and_padded_no_other_columns = sort_and_pad_matches(&cli_no_other_columns, matches.clone()).unwrap();
+        let sorted_and_padded_version_column = sort_and_pad_matches(&cli_version_column, matches.clone()).unwrap();
+        let sorted_and_padded_description_column = sort_and_pad_matches(&cli_description_column, matches).unwrap();
+
+        assert_eq!(exact_matches_all_columns, sorted_and_padded_all_columns.0.join("\n"));
+        assert_eq!(direct_matches_all_columns, sorted_and_padded_all_columns.1.join("\n"));
+        assert_eq!(indirect_matches_all_columns, sorted_and_padded_all_columns.2.join("\n"));
+
+        assert_eq!(exact_matches_no_other_columns, sorted_and_padded_no_other_columns.0.join("\n"));
+        assert_eq!(direct_matches_no_other_columns, sorted_and_padded_no_other_columns.1.join("\n"));
+        assert_eq!(indirect_matches_no_other_columns, sorted_and_padded_no_other_columns.2.join("\n"));
+
+        assert_eq!(exact_matches_version_column, sorted_and_padded_version_column.0.join("\n"));
+        assert_eq!(direct_matches_version_column, sorted_and_padded_version_column.1.join("\n"));
+        assert_eq!(indirect_matches_version_column, sorted_and_padded_version_column.2.join("\n"));
+
+        assert_eq!(exact_matches_description_column, sorted_and_padded_description_column.0.join("\n"));
+        assert_eq!(direct_matches_description_column, sorted_and_padded_description_column.1.join("\n"));
+        assert_eq!(indirect_matches_description_column, sorted_and_padded_description_column.2.join("\n"));
+    }
+
+    #[test]
+    fn test_parse_json_to_lines() {
+        let json = "{\
+            \"legacyPackages.x86_64-linux.mypackage\": {\
+            \"description\":\"i describe\",\
+            \"pname\":\"mypackagebinary\",\
+            \"version\":\"old\"},\
+            \
+            \"legacyPackages.x86_64-linux.myotherpackage\": {\
+            \"description\":\"i also describe\",\
+            \"pname\":\"myotherpackagebinary\",\
+            \"version\":\"fresh\"}\
+            }";
+        let desired_output = "\
+            myotherpackage fresh i also describe\n\
+            mypackage old i describe\
+            ";
+        let parsed = parse_json_to_lines(json);
+
+        assert_eq!(parsed, desired_output);
+    }
+}

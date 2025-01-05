@@ -404,6 +404,7 @@ dependencies = [
  "home",
  "log",
  "predicates",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",
