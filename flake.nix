@@ -1,30 +1,34 @@
 {
   description = "Nix Package Search";
 
-  inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs = {
+    flake-utils.url = "github:numtide/flake-utils";
+    naersk.url = "github:nix-community/naersk";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+  };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay, ... }:
   flake-utils.lib.eachDefaultSystem (system:
     let
-      pkgs = import nixpkgs { inherit system; };
-      my-name = "nps";
-      dependencies = with pkgs; [ getopt ripgrep gawk gnused ];
-      nps = (pkgs.writeScriptBin my-name (builtins.readFile ./nps)).overrideAttrs(old: {
-        buildCommand = "${old.buildCommand}\n patchShebangs $out";
-      });
-    in rec {
+      overlays = [ (import rust-overlay) ];
+      pkgs = import nixpkgs { inherit system overlays; };
+      naersk' = pkgs.callPackage naersk {};
+    in rec
+    {
       defaultPackage = packages.nps;
-      packages.nps = pkgs.symlinkJoin {
-        name = my-name;
-        paths = [ nps ];
-        buildInputs = [ pkgs.makeWrapper ];
-        postBuild =
-          let
-            dependency_path = pkgs.lib.makeBinPath dependencies;
-          in
-          ''
-            wrapProgram "$out/bin/${my-name}" --prefix PATH : "$out/bin:${dependency_path}"
-          '';
+      packages.nps = naersk'.buildPackage {
+          src = ./.;
+      };
+
+      devShells.default = with pkgs; mkShell {
+        buildInputs = [
+            cargo-tarpaulin  # code coverage
+            hyperfine  # benchmarking
+            rust-bin.beta.latest.default
+        ];
+        shellHook = ''
+        '';
       };
     }
   );
