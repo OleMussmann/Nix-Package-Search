@@ -27,9 +27,9 @@ use termcolor::{Buffer, BufferWriter};
 /// They are also listed in the `-h`/`--help` commands.
 const DEFAULTS: Defaults = Defaults {
     cache_folder: ".nix-package-search", // /home/USER/...
-    cache_file: "nps.dev.cache",  // not user settable
+    cache_file: "nps.dev.cache",         // not user settable
     experimental: false,
-    experimental_cache_file: "nps.experimental.dev.cache",  // not user settable
+    experimental_cache_file: "nps.experimental.dev.cache", // not user settable
     color_mode: clap::ColorChoice::Auto,
     columns: ColumnsChoice::All,
     flip: false,
@@ -345,7 +345,14 @@ fn styles() -> Styles {
 fn option_help_text(help_text: &str) -> String {
     help_text
         .replace("{DEFAULT_EXPERIMENTAL}", &DEFAULTS.experimental.to_string())
-        .replace("{DEFAULT_CACHE_FOLDER}", &home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string())
+        .replace(
+            "{DEFAULT_CACHE_FOLDER}",
+            &home::home_dir()
+                .unwrap()
+                .join(DEFAULTS.cache_folder)
+                .display()
+                .to_string(),
+        )
         .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
         .replace(
             "{DEFAULT_EXPERIMENTAL_CACHE_FILE}",
@@ -816,7 +823,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_matches () {
+    fn test_get_matches() {
         let cli = Cli::try_parse_from(vec!["nps", "second"]).unwrap();
         let content = "\
             the first line\n\
@@ -829,7 +836,7 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_case () {
+    fn test_convert_case() {
         let test_string = "abCDef";
 
         assert_eq!(convert_case(test_string, false), "abCDef");
@@ -837,18 +844,22 @@ mod tests {
     }
 
     #[test]
-    fn test_sort_and_pad_matches () {
+    fn test_sort_and_pad_matches() {
         let cli_all_columns = Cli::try_parse_from(vec!["nps", "mypackage"]).unwrap();
-        let cli_no_other_columns = Cli::try_parse_from(vec!["nps", "-C=none", "mypackage"]).unwrap();
-        let cli_version_column = Cli::try_parse_from(vec!["nps", "-C=version", "mypackage"]).unwrap();
-        let cli_description_column = Cli::try_parse_from(vec!["nps", "-C=description", "mypackage"]).unwrap();
+        let cli_no_other_columns =
+            Cli::try_parse_from(vec!["nps", "-C=none", "mypackage"]).unwrap();
+        let cli_version_column =
+            Cli::try_parse_from(vec!["nps", "-C=version", "mypackage"]).unwrap();
+        let cli_description_column =
+            Cli::try_parse_from(vec!["nps", "-C=description", "mypackage"]).unwrap();
         let matches = "\
             mypackage v1 my package description\n\
             myotherpackage v2 has description as well\n\
             mypackage_extension v3 words words\n\
             mypackage_extension_2 v4 words words w0rds\n\
             mylastpackage v5.0.0 is not mypackage\
-            ".to_string();
+            "
+        .to_string();
 
         let exact_matches_all_columns = "\
             mypackage              v1      my package description\

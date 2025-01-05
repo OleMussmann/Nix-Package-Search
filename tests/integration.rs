@@ -40,12 +40,10 @@ fn no_search_term() {
 #[test]
 fn too_much_debug() {
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg("-ddddd")
-        .arg("search_term")
-        .env_clear();
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Max log level is 4",
-    ));
+    cmd.arg("-ddddd").arg("search_term").env_clear();
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Max log level is 4"));
 }
 
 #[test]
@@ -98,8 +96,7 @@ MyTestPackageName    1.0.0  Test package description
 }
 
 #[test]
-fn experimental_output_flip_by_command_line_no_equals(
-) {
+fn experimental_output_flip_by_command_line_no_equals() {
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
