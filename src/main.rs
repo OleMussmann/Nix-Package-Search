@@ -243,16 +243,6 @@ NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH
     [default: {DEFAULT_CACHE_FOLDER}]
     [possible values: path]
 
-NIX_PACKAGE_SEARCH_CACHE_FILE
-  Name of the cache file
-    [default: {DEFAULT_CACHE_FILE}]
-    [possible values: filename]
-
-NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE
-  Name of the cache file
-    [default: {DEFAULT_EXPERIMENTAL_CACHE_FILE}]
-    [possible values: filename]
-
 NIX_PACKAGE_SEARCH_COLUMNS
   Choose columns to show: PACKAGE_NAME plus any of PACKAGE_VERSION or
   PACKAGE_DESCRIPTION
