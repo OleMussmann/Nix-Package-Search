@@ -14,10 +14,11 @@
       overlays = [ (import rust-overlay) ];
       pkgs = import nixpkgs { inherit system overlays; };
       naersk' = pkgs.callPackage naersk {};
-    in
+    in rec
     {
-      defaultPackage = naersk'.buildPackage {
-        src = ./.;
+      defaultPackage = packages.nps;
+      packages.nps = naersk'.buildPackage {
+          src = ./.;
       };
 
       devShells.default = with pkgs; mkShell {
@@ -29,7 +30,6 @@
         shellHook = ''
         '';
       };
-
     }
   );
 }
