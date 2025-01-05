@@ -639,10 +639,11 @@ fn parse_json_to_lines(raw_output: &str) -> String {
 /// Fetch new package info and write to cache file
 fn refresh(
     experimental: bool,
-    cache_folder: PathBuf,
+    cache_folder: &PathBuf,
     cache_file: PathBuf,
     experimental_cache_file: PathBuf,
-) -> Result<(usize, String), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
+    log::info!("Refreshing cache");
     let output = match experimental {
         true => Command::new("nix")
             .arg("search")
@@ -693,7 +694,9 @@ fn refresh(
     let number_of_packages = cache_content.lines().count();
     let cache_file_path_string = cache_file_path.display().to_string();
 
-    return Ok((number_of_packages, cache_file_path_string));
+    log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
+
+    return Ok(());
 }
 
 fn main() -> ExitCode {
@@ -741,18 +744,25 @@ fn main() -> ExitCode {
     let cache_file = PathBuf::from(DEFAULTS.cache_file);
     let experimental_cache_file = PathBuf::from(DEFAULTS.experimental_cache_file);
 
+    let file_path: PathBuf = match cli.experimental {
+        true => cli.cache_folder.join(&experimental_cache_file),
+        false => cli.cache_folder.join(&cache_file),
+    };
+
+    let cache_file_exists = file_path.exists();
+
     // Refresh cache with new info?
-    if cli.refresh {
-        log::info!("Refreshing cache");
+    if cli.refresh || !cache_file_exists {
         match refresh(
             cli.experimental,
-            cli.cache_folder,
+            &cli.cache_folder,
             cache_file,
             experimental_cache_file,
         ) {
-            Ok((number_of_packages, cache_file_path_string)) => {
-                log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
-                return ExitCode::SUCCESS;
+            Ok(_) => {
+                if cli.refresh {
+                    return ExitCode::SUCCESS;
+                }
             }
             Err(err) => {
                 log::error!("Can't refresh cache: {err}");
@@ -760,11 +770,6 @@ fn main() -> ExitCode {
             }
         }
     }
-
-    let file_path: PathBuf = match cli.experimental {
-        true => cli.cache_folder.join(&experimental_cache_file),
-        false => cli.cache_folder.join(&cache_file),
-    };
 
     let content = match fs::read_to_string(&file_path) {
         Ok(content) => content,
