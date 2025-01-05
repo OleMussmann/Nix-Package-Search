@@ -898,26 +898,66 @@ mod tests {
             mylastpackage          is not mypackage\
             ";
 
-        let sorted_and_padded_all_columns = sort_and_pad_matches(&cli_all_columns, matches.clone()).unwrap();
-        let sorted_and_padded_no_other_columns = sort_and_pad_matches(&cli_no_other_columns, matches.clone()).unwrap();
-        let sorted_and_padded_version_column = sort_and_pad_matches(&cli_version_column, matches.clone()).unwrap();
-        let sorted_and_padded_description_column = sort_and_pad_matches(&cli_description_column, matches).unwrap();
+        let sorted_and_padded_all_columns =
+            sort_and_pad_matches(&cli_all_columns, matches.clone()).unwrap();
+        let sorted_and_padded_no_other_columns =
+            sort_and_pad_matches(&cli_no_other_columns, matches.clone()).unwrap();
+        let sorted_and_padded_version_column =
+            sort_and_pad_matches(&cli_version_column, matches.clone()).unwrap();
+        let sorted_and_padded_description_column =
+            sort_and_pad_matches(&cli_description_column, matches).unwrap();
 
-        assert_eq!(exact_matches_all_columns, sorted_and_padded_all_columns.0.join("\n"));
-        assert_eq!(direct_matches_all_columns, sorted_and_padded_all_columns.1.join("\n"));
-        assert_eq!(indirect_matches_all_columns, sorted_and_padded_all_columns.2.join("\n"));
+        assert_eq!(
+            exact_matches_all_columns,
+            sorted_and_padded_all_columns.0.join("\n")
+        );
+        assert_eq!(
+            direct_matches_all_columns,
+            sorted_and_padded_all_columns.1.join("\n")
+        );
+        assert_eq!(
+            indirect_matches_all_columns,
+            sorted_and_padded_all_columns.2.join("\n")
+        );
 
-        assert_eq!(exact_matches_no_other_columns, sorted_and_padded_no_other_columns.0.join("\n"));
-        assert_eq!(direct_matches_no_other_columns, sorted_and_padded_no_other_columns.1.join("\n"));
-        assert_eq!(indirect_matches_no_other_columns, sorted_and_padded_no_other_columns.2.join("\n"));
+        assert_eq!(
+            exact_matches_no_other_columns,
+            sorted_and_padded_no_other_columns.0.join("\n")
+        );
+        assert_eq!(
+            direct_matches_no_other_columns,
+            sorted_and_padded_no_other_columns.1.join("\n")
+        );
+        assert_eq!(
+            indirect_matches_no_other_columns,
+            sorted_and_padded_no_other_columns.2.join("\n")
+        );
 
-        assert_eq!(exact_matches_version_column, sorted_and_padded_version_column.0.join("\n"));
-        assert_eq!(direct_matches_version_column, sorted_and_padded_version_column.1.join("\n"));
-        assert_eq!(indirect_matches_version_column, sorted_and_padded_version_column.2.join("\n"));
+        assert_eq!(
+            exact_matches_version_column,
+            sorted_and_padded_version_column.0.join("\n")
+        );
+        assert_eq!(
+            direct_matches_version_column,
+            sorted_and_padded_version_column.1.join("\n")
+        );
+        assert_eq!(
+            indirect_matches_version_column,
+            sorted_and_padded_version_column.2.join("\n")
+        );
 
-        assert_eq!(exact_matches_description_column, sorted_and_padded_description_column.0.join("\n"));
-        assert_eq!(direct_matches_description_column, sorted_and_padded_description_column.1.join("\n"));
-        assert_eq!(indirect_matches_description_column, sorted_and_padded_description_column.2.join("\n"));
+        assert_eq!(
+            exact_matches_description_column,
+            sorted_and_padded_description_column.0.join("\n")
+        );
+        assert_eq!(
+            direct_matches_description_column,
+            sorted_and_padded_description_column.1.join("\n")
+        );
+        assert_eq!(
+            indirect_matches_description_column,
+            sorted_and_padded_description_column.2.join("\n")
+        );
     }
 
     #[test]
