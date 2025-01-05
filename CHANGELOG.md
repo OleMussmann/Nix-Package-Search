@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - No changes yet
 
+## [0.2.0] - 2025-01-05
+
+### Added
+- Optionally use the nix system registry flake as a source
+  - Use option `-e`/`--experimental`
+- Update documentation
+- Show environment variable settings in `-h`/`--help`
+- `-d`/`--debug` for debug info, use multiple times for increased verbosity
+- `-i`/`--ignore-case` option
+
+### Changed
+- Fancier `-h`/`--help` with colors
+- Supplying flags with arguments require the use of "="
+  - `-f=true`
+  - Or use the default by omitting the flag argument `-f`
+- Saner defaults
+  - Inverted `-f`/`--flip`, show most important matches below
+  - Case-insensitive search by default
+- Use `--help` instead of `-l` for long help
+- Version flag changed to `-V`/`--version`
+
+### Removed
+- Settings for file names
+
+### Fixed
+- Inconsistent use of empty lines separating matches
+- Duplicated package matches
+- Much faster now!
+
 ## [0.1.6] - 2023-01-08
 
 ### Fixed
@@ -61,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Versioning now adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
-[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.6...development
+[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.0...development
+[0.2.0]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.2.0
 [0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.6
 [0.1.5]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.5
 [0.1.4]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.4
