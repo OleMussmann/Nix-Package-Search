@@ -27,9 +27,9 @@ use termcolor::{Buffer, BufferWriter};
 /// They are also listed in the `-h`/`--help` commands.
 const DEFAULTS: Defaults = Defaults {
     cache_folder: ".nix-package-search", // /home/USER/...
-    cache_file: "nps.dev.cache",         // not user settable
+    cache_file: "nps.cache",             // not user settable
     experimental: false,
-    experimental_cache_file: "nps.experimental.dev.cache", // not user settable
+    experimental_cache_file: "nps.experimental.cache", // not user settable
     color_mode: clap::ColorChoice::Auto,
     columns: ColumnsChoice::All,
     flip: false,
