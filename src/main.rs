@@ -27,9 +27,9 @@ use termcolor::{Buffer, BufferWriter};
 /// They are also listed in the `-h`/`--help` commands.
 const DEFAULTS: Defaults = Defaults {
     cache_folder: ".nix-package-search", // /home/USER/...
-    cache_file: "nps.dev.cache",
+    cache_file: "nps.dev.cache",  // not user settable
     experimental: false,
-    experimental_cache_file: "nps.experimental.dev.cache",
+    experimental_cache_file: "nps.experimental.dev.cache",  // not user settable
     color_mode: clap::ColorChoice::Auto,
     columns: ColumnsChoice::All,
     flip: false,
@@ -174,28 +174,6 @@ struct Cli {
         env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH"
     )]
     cache_folder: PathBuf,
-
-    /// Cache file name
-    #[arg(
-        long,
-        require_equals = true,
-        hide = true,
-        default_value = DEFAULTS.cache_file,
-        value_parser = clap::value_parser!(PathBuf),
-        env = "NIX_PACKAGE_SEARCH_CACHE_FILE"
-    )]
-    cache_file: PathBuf,
-
-    /// Experimental cache file name
-    #[arg(
-        long,
-        require_equals = true,
-        hide = true,
-        default_value = DEFAULTS.experimental_cache_file,
-        value_parser = clap::value_parser!(PathBuf),
-        env = "NIX_PACKAGE_SEARCH_EXPERIMENTAL_CACHE_FILE"
-    )]
-    experimental_cache_file: PathBuf,
 
     /// Color of EXACT matches, match SEARCH_TERM
     #[arg(
@@ -638,7 +616,8 @@ fn print_matches(
         out.reverse();
     }
 
-    println!("{}", &out.join("").trim()); // BufferWriter introduces a newline that we need to trim for some reason
+    // BufferWriter introduces a newline that we need to trim for some reason
+    writeln!(io::stdout(), "{}", &out.join("").trim())?;
 
     Ok(())
 }
@@ -767,14 +746,17 @@ fn main() -> ExitCode {
         }
     };
 
+    let cache_file = PathBuf::from(DEFAULTS.cache_file);
+    let experimental_cache_file = PathBuf::from(DEFAULTS.experimental_cache_file);
+
     // Refresh cache with new info?
     if cli.refresh {
         log::info!("Refreshing cache");
         match refresh(
             cli.experimental,
             cli.cache_folder,
-            cli.cache_file,
-            cli.experimental_cache_file,
+            cache_file,
+            experimental_cache_file,
         ) {
             Ok((number_of_packages, cache_file_path_string)) => {
                 log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
@@ -788,8 +770,8 @@ fn main() -> ExitCode {
     }
 
     let file_path: PathBuf = match cli.experimental {
-        true => cli.cache_folder.join(&cli.experimental_cache_file),
-        false => cli.cache_folder.join(&cli.cache_file),
+        true => cli.cache_folder.join(&experimental_cache_file),
+        false => cli.cache_folder.join(&cache_file),
     };
 
     let content = match fs::read_to_string(&file_path) {

@@ -63,7 +63,6 @@ MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
-        .arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
@@ -88,8 +87,7 @@ MyTestPackageName1   1.1.0  Another test package description
 MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg("--experimental-cache-file=test.experimental.cache")
-        .arg("--cache-folder=tests/")
+    cmd.arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
         .env_clear(); // remove env vars
@@ -115,7 +113,6 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("-f")
-        .arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
@@ -141,7 +138,6 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
         .arg("-f=true")
-        .arg("--experimental-cache-file=test.experimental.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
@@ -166,8 +162,7 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
 ";
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false");
-    cmd.arg("--experimental-cache-file=test.experimental.cache")
-        .arg("--cache-folder=tests/")
+    cmd.arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
         .env_clear()
@@ -202,7 +197,6 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-i=false")
-        .arg("--cache-file=test.cache")
         .arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")
@@ -237,8 +231,7 @@ nixos.MyTestPackageName      1.0.0  Test package description
 nixpkgs.MyTestPackageName    1.0.0  Test package description
 ";
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg("--cache-file=test.cache")
-        .arg("--cache-folder=tests/")
+    cmd.arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")
         .env_clear(); // remove env vars
@@ -258,19 +251,16 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 fn cache_creation() {
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path().to_owned();
-    let temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
-    let temp_file_name = temp_file.path().file_name().unwrap();
 
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg(format!("--cache-file={}", &temp_file_name.to_str().unwrap()))
-        .arg(format!("--cache-folder={}", &temp_path.display()))
+    cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=false")
         .arg("-r")
         .env_clear(); // remove env vars
 
     cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_file.path()).unwrap();
+    let cache_content = fs::read_to_string(&temp_path.join("nps.dev.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 }
@@ -282,19 +272,16 @@ fn cache_creation() {
 fn experimental_cache_creation() -> () {
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path().to_owned();
-    let temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
-    let temp_file_name = temp_file.path().file_name().unwrap();
 
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg(format!("--experimental-cache-file={}", &temp_file_name.to_str().unwrap()))
-        .arg(format!("--cache-folder={}", &temp_path.display()))
+    cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=true")
         .arg("-r")
         .env_clear(); // remove env vars
 
     cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_file.path()).unwrap();
+    let cache_content = fs::read_to_string(&temp_path.join("nps.experimental.dev.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 }
