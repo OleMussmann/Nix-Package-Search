@@ -75,6 +75,7 @@ struct Cli {
         visible_alias = "colour",
         default_value_t = DEFAULTS.color_mode,
         default_missing_value = "clap::ColorChoice::Auto",
+        num_args = 0..=1,
         env = "NIX_PACKAGE_SEARCH_COLOR_MODE"
         )]
     color: clap::ColorChoice,
@@ -87,6 +88,7 @@ struct Cli {
         default_value_t = DEFAULTS.columns,
         default_missing_value = "ColumnsChoice::All",
         value_enum,
+        num_args = 0..=1,
         env = "NIX_PACKAGE_SEARCH_COLUMNS"
     )]
     columns: ColumnsChoice,
