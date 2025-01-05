@@ -171,7 +171,7 @@ struct Cli {
         hide = true,
         default_value = home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string(),
         value_parser = clap::value_parser!(PathBuf),
-        env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER"
+        env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH"
     )]
     cache_folder: PathBuf,
 
@@ -258,8 +258,8 @@ NIX_PACKAGE_SEARCH_FLIP
     [default: {DEFAULT_FLIP}]
     [possible values: true, false]
 
-NIX_PACKAGE_SEARCH_CACHE_FOLDER
-  In which folder is the cache located?
+NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH
+  Absolute path of the cache folder
     [default: {DEFAULT_CACHE_FOLDER}]
     [possible values: path]
 
@@ -375,7 +375,7 @@ fn styles() -> Styles {
 fn option_help_text(help_text: &str) -> String {
     help_text
         .replace("{DEFAULT_EXPERIMENTAL}", &DEFAULTS.experimental.to_string())
-        .replace("{DEFAULT_CACHE_FOLDER}", DEFAULTS.cache_folder)
+        .replace("{DEFAULT_CACHE_FOLDER}", &home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string())
         .replace("{DEFAULT_CACHE_FILE}", DEFAULTS.cache_file)
         .replace(
             "{DEFAULT_EXPERIMENTAL_CACHE_FILE}",
@@ -704,10 +704,10 @@ fn refresh(
     };
 
     // Create cache folder, if not exists
-    fs::create_dir_all(home::home_dir().unwrap().join(PathBuf::from(&cache_folder)))?;
+    fs::create_dir_all(PathBuf::from(&cache_folder))?;
 
     // Paths for cache folder and cache file
-    let cache_folder_path = home::home_dir().unwrap().join(PathBuf::from(cache_folder));
+    let cache_folder_path = PathBuf::from(cache_folder);
     let cache_file_path = match experimental {
         true => &cache_folder_path.join(PathBuf::from(experimental_cache_file)),
         false => &cache_folder_path.join(PathBuf::from(cache_file)),
