@@ -23,6 +23,7 @@
 
       devShells.default = with pkgs; mkShell {
         buildInputs = [
+            cargo-release  # help creating releases
             cargo-tarpaulin  # code coverage
             hyperfine  # benchmarking
             rust-bin.beta.latest.default
