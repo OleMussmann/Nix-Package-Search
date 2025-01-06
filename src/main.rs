@@ -680,9 +680,9 @@ fn refresh(
             }
             log::warn!("> {}", line);
         }
-        if !first_error {
-            log::warn!("These warnings were encountered during cache refresh (END)");
-        }
+    }
+    if !first_error {
+        log::warn!("These warnings were encountered during cache refresh (END)");
     }
 
     // Throw error if cache is too small
