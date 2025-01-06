@@ -443,12 +443,17 @@ fn sort_and_pad_matches<'a>(
     let name_padding = *name_lengths.iter().max().unwrap_or(&0);
     let version_padding = *version_lengths.iter().max().unwrap_or(&0);
 
+    log::trace!("name_padding: {}", name_padding);
+    log::trace!("version_padding: {}", version_padding);
+
     let mut padded_matches_exact: Vec<String> = vec![];
     let mut padded_matches_direct: Vec<String> = vec![];
     let mut padded_matches_indirect: Vec<String> = vec![];
 
     for line in raw_matches.lines() {
         let split_line: Vec<&str> = line.splitn(3, ' ').collect();
+
+        log::trace!("split_line: {:?}", split_line);
 
         let name = split_line.get(0).unwrap_or(&"");
         let version = split_line.get(1).unwrap_or(&"");
@@ -464,9 +469,14 @@ fn sort_and_pad_matches<'a>(
             ColumnsChoice::None => format!("{} ", name),
         };
 
+        log::trace!("assembled_line: {}", assembled_line);
+
         // Handle case-insensitive, if requested
         let converted_search_term = &convert_case(&search_term, cli.ignore_case);
         let converted_name = &convert_case(&name, cli.ignore_case);
+
+        log::trace!("converted_search_term: {}", converted_search_term);
+        log::trace!("converted_name: {}", converted_name);
 
         // Package names from channels are prepended with "nixos." or "nixpgks."
         match cli.experimental {
@@ -493,6 +503,9 @@ fn sort_and_pad_matches<'a>(
                 }
             }
         }
+        log::trace!("padded_matches_exact: {:?}", padded_matches_exact);
+        log::trace!("padded_matches_direct: {:?}", padded_matches_direct);
+        log::trace!("padded_matches_indirect: {:?}", padded_matches_indirect);
     }
 
     return Ok((
@@ -834,8 +847,14 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[test]
     fn test_get_matches() {
+        init();
+
         let cli = Cli::try_parse_from(vec!["nps", "second"]).unwrap();
         let content = "\
             the first line\n\
@@ -849,6 +868,8 @@ mod tests {
 
     #[test]
     fn test_convert_case() {
+        init();
+
         let test_string = "abCDef";
 
         assert_eq!(convert_case(test_string, false), "abCDef");
@@ -857,6 +878,8 @@ mod tests {
 
     #[test]
     fn test_sort_and_pad_matches() {
+        init();
+
         let cli_all_columns = Cli::try_parse_from(vec!["nps", "mypackage"]).unwrap();
         let cli_no_other_columns =
             Cli::try_parse_from(vec!["nps", "-C=none", "mypackage"]).unwrap();
@@ -985,6 +1008,8 @@ mod tests {
 
     #[test]
     fn test_parse_json_to_lines() {
+        init();
+
         let json = "{\
             \"legacyPackages.x86_64-linux.mypackage\": {\
             \"description\":\"i describe\",\
