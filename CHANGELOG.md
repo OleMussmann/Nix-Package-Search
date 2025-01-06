@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - Automated tests via GitHub Actions
+- Sync package version to git tag via GitHub Actions
 - Test coverage report badge
 
 ## [0.2.1] - 2025-01-06

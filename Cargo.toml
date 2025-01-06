@@ -1,6 +1,6 @@
 [package]
 name = "nps"
-version = "0.2.1"
+version = "0.0.0-git"  # Replace with GitHub Action, see https://stackoverflow.com/questions/52176130/how-to-tell-cargo-to-use-git-tags-to-determine-the-crate-version
 description = "Find SEARCH_TERM in available nix packages and sort results by relevance"
 authors = ["Ole Mussmann <github+account@ole.mn>"]
 license = "MIT"
