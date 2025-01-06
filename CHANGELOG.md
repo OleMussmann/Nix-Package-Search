@@ -7,16 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### New
-- Optionally use the nix system registry flake as a source
-- Update documentation
-
-### Removed
-- Settings for file names
+## [0.2.1] - 2025-01-06
 
 ### Fixed
-- Inconsistent use of empty lines separating matches
-- Duplicated package matches
+- Cache tests
+- Be more fine-grained with cache refresh errors
 
 ## [0.2.0] - 2025-01-05
 
@@ -91,7 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Versioning now adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
-[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.0...development
+[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.1...development
+[0.2.1]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.2.1
 [0.2.0]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.2.0
 [0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.6
 [0.1.5]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.5

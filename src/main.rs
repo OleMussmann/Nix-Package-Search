@@ -669,12 +669,24 @@ fn refresh(
         str::from_utf8(&output.stderr).unwrap(),
     );
 
-    // Throw error if stderr looks bad
+    // Report warnings if stderr looks bad
+    let mut first_error = true;
     for line in stderr.lines() {
-        if !line.starts_with("evaluating") {
-            // ignore logging to stderr
-            return Err(line.into());
+        if !line.starts_with("evaluating") {  // ignore standard logging to stderr
+            if first_error {
+                log::warn!("These warnings were encountered during cache refresh (START)");
+                first_error = false;
+            }
+            log::warn!("> {}", line);
         }
+        if !first_error {
+            log::warn!("These warnings were encountered during cache refresh (END)");
+        }
+    }
+
+    // Throw error if cache is too small
+    if stdout.len() < 10_000 {
+        return Err("Cache seems too small. Run with `-d` flag for more information.".into());
     }
 
     let cache_content = match experimental {
