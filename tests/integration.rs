@@ -4,10 +4,16 @@ use regex::Regex;
 use std::{fs, process::Command};
 use tempfile::TempDir;
 
+fn init() {
+    let _ = env_logger::builder().is_test(true).try_init();
+}
+
 #[test]
 fn short_help() {
+    init();
+
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg("-h");
+    cmd.arg("-h").arg("-dddd");
     cmd.assert().success().stdout(predicate::str::contains(
         "Find SEARCH_TERM in available nix packages and sort results by relevance",
     ));
@@ -18,8 +24,10 @@ fn short_help() {
 
 #[test]
 fn long_help() {
+    init();
+
     let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg("--help");
+    cmd.arg("--help").arg("-dddd");
     cmd.assert().success().stdout(predicate::str::contains(
         "Use up to four times for increased verbosity",
     ));
@@ -30,7 +38,10 @@ fn long_help() {
 
 #[test]
 fn no_search_term() {
+    init();
+
     let mut cmd = Command::cargo_bin("nps").unwrap();
+    cmd.arg("-dddd");
     cmd.assert().failure().stderr(predicate::str::contains(
         "error: the following required arguments were not provided:
   <SEARCH_TERM>",
@@ -39,6 +50,8 @@ fn no_search_term() {
 
 #[test]
 fn too_much_debug() {
+    init();
+
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg("-ddddd").arg("search_term").env_clear();
     cmd.assert()
@@ -48,6 +61,8 @@ fn too_much_debug() {
 
 #[test]
 fn experimental_output_case_sensitive() {
+    init();
+
     let desired_output =
         "MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
@@ -64,6 +79,7 @@ MyTestPackageName    1.0.0  Test package description
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -73,6 +89,8 @@ MyTestPackageName    1.0.0  Test package description
 
 #[test]
 fn experimental_output() {
+    init();
+
     let desired_output = "MatchMyDescription2  9.8.7  mytestpackageName appears in my description with different capitalization
 MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my description
 MatchMyDescription   a.b.c  MyTestPackageName appears in my description
@@ -88,6 +106,7 @@ MyTestPackageName    1.0.0  Test package description
     cmd.arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -97,6 +116,8 @@ MyTestPackageName    1.0.0  Test package description
 
 #[test]
 fn experimental_output_flip_by_command_line_no_equals() {
+    init();
+
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -113,6 +134,7 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -122,6 +144,8 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
 
 #[test]
 fn experimental_output_flip_by_command_line_equals() {
+    init();
+
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -138,6 +162,7 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
         .arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -147,6 +172,8 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
 
 #[test]
 fn experimental_output_flip_by_env_var() {
+    init();
+
     let desired_output = "MyTestPackageName    1.0.0  Test package description
 
 MyTestPackageName1   1.1.0  Another test package description
@@ -162,6 +189,7 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
     cmd.arg("--cache-folder=tests/")
         .arg("--experimental=true")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear()
         .env("NIX_PACKAGE_SEARCH_FLIP", "true");
 
@@ -172,6 +200,8 @@ MatchMyDescription1  9.8.7  Also here MyTestPackageName appears in my descriptio
 
 #[test]
 fn output_case_sensitive() {
+    init();
+
     // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
     // the same time.
     let desired_output =
@@ -197,6 +227,7 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
         .arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -206,6 +237,8 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 
 #[test]
 fn output() {
+    init();
+
     // The cache mixes scenarios for nixos-the-OS and nix-the-package-manager. We test for both at
     // the same time.
     let desired_output = "nixos.MatchMyDescription2    9.8.7  mytestpackageName appears in my description with different capitalization
@@ -231,6 +264,7 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
     cmd.arg("--cache-folder=tests/")
         .arg("--experimental=false")
         .arg("MyTestPackageName")
+        .arg("-dddd")
         .env_clear(); // remove env vars
 
     cmd.assert()
@@ -246,20 +280,28 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 /// Testing the creation of new caches. This requires internet connection, so
 /// it is disabled by default.
 fn cache_creation() {
+    init();
+
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path().to_owned();
 
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=false")
+        .arg("-dddd")
         .arg("-r")
         .env_clear(); // remove env vars
 
-    cmd.assert().success();
+    let output = cmd.assert().success();
 
     let cache_content = fs::read_to_string(&temp_path.join("nps.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
+
+    println!(
+        "STDERR:\n{}",
+        String::from_utf8_lossy(&output.get_output().stderr)
+    );
 }
 
 #[test]
@@ -267,18 +309,27 @@ fn cache_creation() {
 /// Testing the creation of new caches. This requires internet connection, so
 /// it is disabled by default.
 fn experimental_cache_creation() -> () {
+    init();
+
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path().to_owned();
 
     let mut cmd = Command::cargo_bin("nps").unwrap();
     cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=true")
+        .arg("-dddd")
         .arg("-r")
-        .env_clear(); // remove env vars
+        //.env_clear() // remove env vars
+        .env("RUST_LOG", "TRACE");
 
-    cmd.assert().success();
+    let output = cmd.assert().success();
 
     let cache_content = fs::read_to_string(&temp_path.join("nps.experimental.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
+
+    println!(
+        "STDERR:\n{}",
+        String::from_utf8_lossy(&output.get_output().stderr)
+    );
 }

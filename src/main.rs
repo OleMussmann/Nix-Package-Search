@@ -672,7 +672,8 @@ fn refresh(
     // Report warnings if stderr looks bad
     let mut first_error = true;
     for line in stderr.lines() {
-        if !line.starts_with("evaluating") {  // ignore standard logging to stderr
+        // ignore standard logging to stderr
+        if !line.starts_with("evaluating") {
             if first_error {
                 log::warn!("These warnings were encountered during cache refresh (START)");
                 first_error = false;
@@ -686,6 +687,7 @@ fn refresh(
 
     // Throw error if cache is too small
     if stdout.len() < 10_000 {
+        log::error!("Only {} lines in cache.", stdout.len());
         return Err("Cache seems too small. Run with `-d` flag for more information.".into());
     }
 
@@ -694,8 +696,10 @@ fn refresh(
         false => stdout.to_string(),
     };
 
+    log::trace!("trying to create folder: {:?}", &cache_folder);
     // Create cache folder, if not exists
     fs::create_dir_all(PathBuf::from(&cache_folder))?;
+    log::trace!("folder created");
 
     // Paths for cache folder and cache file
     let cache_folder_path = PathBuf::from(cache_folder);
@@ -704,11 +708,18 @@ fn refresh(
         false => &cache_folder_path.join(PathBuf::from(cache_file)),
     };
 
+    log::trace!("cache_folder_path: {:?}", &cache_folder_path);
+    log::trace!("cache_file_path: {:?}", &cache_file_path);
+
     // Atomic Writing: Write first to a tmp file, then persist (move) it to destination
     let tempfile = NamedTempFile::new_in(cache_folder_path)?;
+    log::trace!("tempfile: {:?}", &tempfile);
+    log::trace!("trying to write tempfile");
     write!(&tempfile, "{}", cache_content)?;
+    log::trace!("tempfile written");
 
     tempfile.persist(cache_file_path)?;
+    log::trace!("tempfile persisted");
 
     let number_of_packages = cache_content.lines().count();
     let cache_file_path_string = cache_file_path.display().to_string();
