@@ -31,6 +31,14 @@ jobs:
           nix build
           nix flake check
 
+      - name: Test nix search
+        run: |
+          echo "channels..."
+          nix-env -qaP --description
+          echo "flakes..."
+          nix search nixpkgs ^ --json
+          echo "end test nix search"
+
       - name: Install Rust
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
