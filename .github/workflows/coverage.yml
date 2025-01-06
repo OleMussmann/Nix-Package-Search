@@ -19,8 +19,11 @@ jobs:
 
       - name: Install nix
         uses: cachix/install-nix-action@v27
-        run: nix build
-        run: nix flake check
+
+      - name: Set up nix
+        run: |
+          nix build
+          nix flake check
 
       - name: Install Rust
         run: rustup update stable
@@ -32,7 +35,7 @@ jobs:
         run: cargo llvm-cov --all-features --workspace --ignored --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info

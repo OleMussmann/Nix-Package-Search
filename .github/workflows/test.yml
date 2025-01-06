@@ -25,13 +25,17 @@ jobs:
 
       - name: Install nix
         uses: cachix/install-nix-action@v27
-        run: nix build
-        run: nix flake check
+
+      - name: Set up nix
+        run: |
+          nix build
+          nix flake check
 
       - name: Install Rust
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
 
       - name: Run tests
-        run: cargo build --verbose
-        run: cargo test --verbose
-        run: cargo test --verbose -- --ignored
+        run: |
+          cargo build --verbose
+          cargo test --verbose
+          cargo test --verbose -- --ignored
