@@ -880,11 +880,11 @@ mod tests {
 
         let cli_all_columns = Cli::try_parse_from(vec!["nps", "-e=true", "mypackage"]).unwrap();
         let cli_no_other_columns =
-            Cli::try_parse_from(vec!["nps", "-C=none", "mypackage"]).unwrap();
+            Cli::try_parse_from(vec!["nps", "-e=true", "-C=none", "mypackage"]).unwrap();
         let cli_version_column =
-            Cli::try_parse_from(vec!["nps", "-C=version", "mypackage"]).unwrap();
+            Cli::try_parse_from(vec!["nps", "-e=true", "-C=version", "mypackage"]).unwrap();
         let cli_description_column =
-            Cli::try_parse_from(vec!["nps", "-C=description", "mypackage"]).unwrap();
+            Cli::try_parse_from(vec!["nps", "-e=true", "-C=description", "mypackage"]).unwrap();
         let matches = "\
             mypackage v1 my package description\n\
             myotherpackage v2 has description as well\n\
