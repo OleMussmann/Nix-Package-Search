@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Automated tests via GitHub Actions
-- Test coverage report badge
 
 ### Fixed
 - Sync package version to git tag via GitHub Actions
