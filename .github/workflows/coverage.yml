@@ -25,6 +25,11 @@ jobs:
           nix build
           nix flake check
 
+      - name: Setting up channels
+        run: |
+          nix-channel --add https://nixos.org/channels/nixos-unstable nixos
+          nix-channel --update
+
       - name: Install Rust
         run: rustup update stable
 

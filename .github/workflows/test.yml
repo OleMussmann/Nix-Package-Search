@@ -31,8 +31,10 @@ jobs:
           nix build
           nix flake check
 
-      - name: Updating channels
-        run: nix-channel --update
+      - name: Setting up channels
+        run: |
+          nix-channel --add https://nixos.org/channels/nixos-unstable nixos
+          nix-channel --update
 
       - name: Test nix search
         run: |
