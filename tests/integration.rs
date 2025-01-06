@@ -257,7 +257,7 @@ fn cache_creation() {
 
     cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_path.join("nps.dev.cache")).unwrap();
+    let cache_content = fs::read_to_string(&temp_path.join("nps.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 }
@@ -278,7 +278,7 @@ fn experimental_cache_creation() -> () {
 
     cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_path.join("nps.experimental.dev.cache")).unwrap();
+    let cache_content = fs::read_to_string(&temp_path.join("nps.experimental.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 }
