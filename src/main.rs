@@ -644,10 +644,7 @@ fn parse_json_to_lines(raw_output: &str) -> String {
 }
 
 /// Fetch new package info and write to cache file
-fn refresh(
-    experimental: bool,
-    file_path: &PathBuf,
-) -> Result<(), Box<dyn Error>> {
+fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>> {
     log::info!("Refreshing cache");
 
     let cache_folder = file_path.parent().unwrap();
@@ -796,10 +793,7 @@ fn main() -> ExitCode {
     // Refresh cache with new info?
     if cli.refresh || !cache_file_exists {
         log::trace!("inside if");
-        match refresh(
-            cli.experimental,
-            &file_path,
-        ) {
+        match refresh(cli.experimental, &file_path) {
             Ok(_) => {
                 if cli.refresh {
                     return ExitCode::SUCCESS;
