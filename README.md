@@ -304,7 +304,7 @@ Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased"
 
 and review the changes. Possible choices for `LEVEL` are `major`, `minor`, `patch`, `release`, `rc`, `beta`, `alpha`. Then execute the release with:
 
-`cargo-release release patch --execute`
+`cargo-release release patch --execute --no-release`
 
 ## Contributing
 
