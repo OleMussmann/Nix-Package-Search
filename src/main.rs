@@ -664,6 +664,8 @@ fn refresh(
             .output()?,
     };
 
+    log::trace!("finished cli command");
+
     let (stdout, stderr) = (
         str::from_utf8(&output.stdout).unwrap(),
         str::from_utf8(&output.stderr).unwrap(),
@@ -777,15 +779,24 @@ fn main() -> ExitCode {
     let cache_file = PathBuf::from(DEFAULTS.cache_file);
     let experimental_cache_file = PathBuf::from(DEFAULTS.experimental_cache_file);
 
+    log::trace!("cache_file: {:?}", cache_file);
+    log::trace!("experimental_cache_file: {:?}", experimental_cache_file);
+
     let file_path: PathBuf = match cli.experimental {
         true => cli.cache_folder.join(&experimental_cache_file),
         false => cli.cache_folder.join(&cache_file),
     };
 
+    log::trace!("file_path: {:?}", file_path);
+
     let cache_file_exists = file_path.exists();
+
+    log::trace!("cache_file_exists: {}", cache_file_exists);
+    log::trace!("cli.refresh: {}", cli.refresh);
 
     // Refresh cache with new info?
     if cli.refresh || !cache_file_exists {
+        log::trace!("inside if");
         match refresh(
             cli.experimental,
             &cli.cache_folder,
