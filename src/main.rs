@@ -669,6 +669,9 @@ fn refresh(
         str::from_utf8(&output.stderr).unwrap(),
     );
 
+    log::trace!("stdout.len(): {}", stdout.len());
+    log::trace!("stderr.len(): {}", stderr.len());
+
     // Report warnings if stderr looks bad
     let mut first_error = true;
     for line in stderr.lines() {
