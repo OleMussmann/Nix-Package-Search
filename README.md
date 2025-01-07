@@ -283,7 +283,7 @@ These tests are by default disabled. Include them with
 
 Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. To generate a HTML report, run the check with
 
-`cargo-tarpaulin --verbose --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
+`cargo-tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
 
 ## Contributing
 
