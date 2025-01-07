@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Automated tests via GitHub Actions
-
-### Fixed
-- Sync package version to git tag via GitHub Actions
+- Releases made with cargo-release
 
 ## [0.2.1] - 2025-01-06
 
