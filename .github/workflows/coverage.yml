@@ -13,6 +13,9 @@ jobs:
   coverage:
     name: nps code coverage - latest
     runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,11 +41,10 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          RUST_LOG=TRACE cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info -- --include-ignored
+          RUST_LOG=TRACE cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 360 --out xml --follow-exec -- --include-ignored
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov.info
           fail_ci_if_error: true
