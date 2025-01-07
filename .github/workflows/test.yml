@@ -48,5 +48,4 @@ jobs:
       - name: Run tests
         run: |
           cargo build --verbose
-          RUST_LOG=TRACE cargo test --verbose -- --nocapture
-          RUST_LOG=TRACE cargo test --verbose -- --ignored --nocapture
+          RUST_LOG=TRACE cargo test --verbose -- --include-ignored --nocapture
