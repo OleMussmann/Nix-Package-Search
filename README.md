@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/OleMussmann/Nix-Package-Search/graph/badge.svg?token=1QLZ9AG8N1)](https://codecov.io/gh/OleMussmann/Nix-Package-Search)
+[![Testing CI](https://github.com/OleMussmann/Nix-Package-Search/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/OleMussmann/Nix-Package-Search/actions/workflows/test.yml) [![CodeCov](https://codecov.io/gh/OleMussmann/Nix-Package-Search/graph/badge.svg?token=1QLZ9AG8N1)](https://codecov.io/gh/OleMussmann/Nix-Package-Search)
 
 # Nix-Package-Search
 Cache the nix package list, query and sort by relevance.
