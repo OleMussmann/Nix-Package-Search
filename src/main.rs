@@ -646,11 +646,14 @@ fn parse_json_to_lines(raw_output: &str) -> String {
 /// Fetch new package info and write to cache file
 fn refresh(
     experimental: bool,
-    cache_folder: &PathBuf,
-    cache_file: PathBuf,
-    experimental_cache_file: PathBuf,
+    file_path: &PathBuf,
 ) -> Result<(), Box<dyn Error>> {
     log::info!("Refreshing cache");
+
+    let cache_folder = file_path.parent().unwrap();
+    log::info!("file_path: {:?}", file_path);
+    log::info!("cache_folder: {:?}", cache_folder);
+
     let output = match experimental {
         true => Command::new("nix")
             .arg("search")
@@ -658,7 +661,7 @@ fn refresh(
             .arg("^")
             .arg("--json")
             .output()?,
-        //false => Command::new("nix-env")
+        //false => Command::new("nix-env")  // TODO roll back
         //    .arg("-qaP")
         //    .arg("--description")
         //    .output()?,
@@ -709,31 +712,27 @@ fn refresh(
 
     log::trace!("trying to create folder: {:?}", &cache_folder);
     // Create cache folder, if not exists
-    fs::create_dir_all(PathBuf::from(&cache_folder))?;
+    fs::create_dir_all(&cache_folder)?;
     log::trace!("folder created");
 
     // Paths for cache folder and cache file
-    let cache_folder_path = PathBuf::from(cache_folder);
-    let cache_file_path = match experimental {
-        true => &cache_folder_path.join(PathBuf::from(experimental_cache_file)),
-        false => &cache_folder_path.join(PathBuf::from(cache_file)),
-    };
+    //let file_path = &cache_folder.join(cache_file);
 
-    log::trace!("cache_folder_path: {:?}", &cache_folder_path);
-    log::trace!("cache_file_path: {:?}", &cache_file_path);
+    log::trace!("cache_folder: {:?}", &cache_folder);
+    log::trace!("file_path: {:?}", &file_path);
 
     // Atomic Writing: Write first to a tmp file, then persist (move) it to destination
-    let tempfile = NamedTempFile::new_in(cache_folder_path)?;
+    let tempfile = NamedTempFile::new_in(cache_folder)?;
     log::trace!("tempfile: {:?}", &tempfile);
     log::trace!("trying to write tempfile");
     write!(&tempfile, "{}", cache_content)?;
     log::trace!("tempfile written");
 
-    tempfile.persist(cache_file_path)?;
+    tempfile.persist(file_path)?;
     log::trace!("tempfile persisted");
 
     let number_of_packages = cache_content.lines().count();
-    let cache_file_path_string = cache_file_path.display().to_string();
+    let cache_file_path_string = format!("{:?}", file_path);
 
     log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
 
@@ -804,11 +803,8 @@ fn main() -> ExitCode {
     if cli.refresh || !cache_file_exists {
         log::trace!("inside if");
         match refresh(
-            true,
-            //cli.experimental,
-            &cli.cache_folder,
-            cache_file,
-            experimental_cache_file,
+            cli.experimental,
+            &file_path,
         ) {
             Ok(_) => {
                 if cli.refresh {
