@@ -706,9 +706,6 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
     fs::create_dir_all(&cache_folder)?;
     log::trace!("folder created");
 
-    // Paths for cache folder and cache file
-    //let file_path = &cache_folder.join(cache_file);
-
     log::trace!("cache_folder: {:?}", &cache_folder);
     log::trace!("file_path: {:?}", &file_path);
 
