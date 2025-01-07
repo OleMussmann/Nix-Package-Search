@@ -319,7 +319,7 @@ fn experimental_cache_creation() -> () {
         .arg("--experimental=true")
         .arg("-dddd")
         .arg("-r")
-        .env_clear() // remove env vars
+        .env_clear(); // remove env vars
         //.env("RUST_LOG", "TRACE");
 
     let output = cmd.assert().success();
