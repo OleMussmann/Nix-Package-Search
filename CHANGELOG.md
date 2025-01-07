@@ -92,15 +92,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Versioning now adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
-<!-- next url -->
-[unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.1...development
-[0.2.1]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.2.1
-[0.2.0]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.2.0
-[0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.6
-[0.1.5]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.5
-[0.1.4]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.4
-[0.1.3]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.3
-[0.1.2]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.2
-[0.1.1]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.1
-[0.1.0]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.1.0
+<!-- next-url -->
+[Unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.1...development
+[0.2.1]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.6...v0.2.0
+[0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/OleMussmann/Nix-Package-Search/releases/tag/v0.0.1
