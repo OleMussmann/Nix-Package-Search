@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.2] - 2025-01-07
+
 ### Added
 - Automated tests via GitHub Actions
 - Releases made with cargo-release
@@ -93,7 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Versioning now adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 <!-- next-url -->
-[Unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.1...development
+[Unreleased]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.2...development
+[0.2.2]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/OleMussmann/Nix-Package-Search/compare/v0.1.5...v0.1.6
