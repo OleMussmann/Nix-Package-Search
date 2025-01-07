@@ -707,7 +707,8 @@ fn refresh(
 
     let cache_content = match experimental {
         true => parse_json_to_lines(stdout),
-        false => stdout.to_string(),
+        //false => stdout.to_string(),
+        false => parse_json_to_lines(stdout),
     };
 
     log::trace!("trying to create folder: {:?}", &cache_folder);
