@@ -287,9 +287,17 @@ Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tes
 
 `cargo-tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
 
+## Benchmarking
+First build `nps` in release mode.
+
+`cargo build --release`
+
+Then run benchmarks on the produced executable with:
+
+`hyperfine './target/release/nps -e neovim'`
+
 ## Contributing
 
 1. Check existing issues or open a new one to suggest a feature or report a bug
 1. Fork the repository and make your changes
 1. Open a pull request
-
