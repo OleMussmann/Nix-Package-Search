@@ -658,9 +658,15 @@ fn refresh(
             .arg("^")
             .arg("--json")
             .output()?,
-        false => Command::new("nix-env")
-            .arg("-qaP")
-            .arg("--description")
+        //false => Command::new("nix-env")
+        //    .arg("-qaP")
+        //    .arg("--description")
+        //    .output()?,
+        false => Command::new("nix")
+            .arg("search")
+            .arg("nixpkgs")
+            .arg("^")
+            .arg("--json")
             .output()?,
     };
 
