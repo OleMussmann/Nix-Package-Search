@@ -277,13 +277,13 @@ Most tests run quick, execute them with:
 `cargo test`
 
 Refreshing the cache needs a working internet connection and might take a while.
-These tests are by default disabled. Run them with
+These tests are by default disabled. Include them with
 
-`cargo test -- --ignored`
+`cargo test -- --include-ignored`
 
-Use `tarpaulin` to check for code coverage. Make sure to run the `--ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. Run the check with
+Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. To generate a HTML report, run the check with
 
-`cargo tarpaulin --out Html --follow-exec --ignored`
+`cargo-tarpaulin --verbose --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
 
 ## Contributing
 
