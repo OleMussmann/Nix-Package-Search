@@ -296,6 +296,16 @@ Then run benchmarks on the produced executable with:
 
 `hyperfine './target/release/nps -e neovim'`
 
+## Release
+
+Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Do a dry-run with:
+
+`cargo-release release [LEVEL|VERSION]`
+
+and review the changes. Possible choices for `LEVEL` are `major`, `minor`, `patch`, `release`, `rc`, `beta`, `alpha`. Then execute the release with:
+
+`cargo-release release patch --execute`
+
 ## Contributing
 
 1. Check existing issues or open a new one to suggest a feature or report a bug
