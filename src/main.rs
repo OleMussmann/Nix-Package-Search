@@ -804,7 +804,8 @@ fn main() -> ExitCode {
     if cli.refresh || !cache_file_exists {
         log::trace!("inside if");
         match refresh(
-            cli.experimental,
+            true,
+            //cli.experimental,
             &cli.cache_folder,
             cache_file,
             experimental_cache_file,
