@@ -7,3 +7,7 @@ target/
 
 # nix stuff
 .direnv/
+
+# Exclude code coverage report, it will be online
+# on codecov.io
+tarpaulin-report.html
