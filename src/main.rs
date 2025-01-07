@@ -661,15 +661,9 @@ fn refresh(
             .arg("^")
             .arg("--json")
             .output()?,
-        //false => Command::new("nix-env")  // TODO roll back
-        //    .arg("-qaP")
-        //    .arg("--description")
-        //    .output()?,
-        false => Command::new("nix")
-            .arg("search")
-            .arg("nixpkgs")
-            .arg("^")
-            .arg("--json")
+        false => Command::new("nix-env")
+            .arg("-qaP")
+            .arg("--description")
             .output()?,
     };
 
@@ -707,8 +701,7 @@ fn refresh(
 
     let cache_content = match experimental {
         true => parse_json_to_lines(stdout),
-        //false => stdout.to_string(),
-        false => parse_json_to_lines(stdout),
+        false => stdout.to_string(),
     };
 
     log::trace!("trying to create folder: {:?}", &cache_folder);

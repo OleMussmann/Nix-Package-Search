@@ -289,9 +289,9 @@ fn cache_creation() {
     cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=false")
         .arg("-dddd")
-        .arg("-r")
+        .arg("-r");
         //.env_clear(); // remove env vars
-        .env("RUST_LOG", "TRACE");
+        //.env("RUST_LOG", "TRACE");
 
     let output = cmd.assert().success();
 
@@ -319,9 +319,9 @@ fn experimental_cache_creation() -> () {
     cmd.arg(format!("--cache-folder={}", &temp_path.display()))
         .arg("--experimental=true")
         .arg("-dddd")
-        .arg("-r")
+        .arg("-r");
         //.env_clear(); // remove env vars
-        .env("RUST_LOG", "TRACE");
+        //.env("RUST_LOG", "TRACE");
 
     let output = cmd.assert().success();
 
