@@ -12,13 +12,16 @@ env:
 jobs:
   build_and_test:
     name: nps build and test - latest
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        toolchain:
-          - stable
-          - beta
-          - nightly
+        os: [ubuntu-latest, macos-latest]
+        toolchain: [stable, beta, nightly]
+        exclude:  # let's save at least _some_ compute time...
+          - os: macos-latest
+            toolchain: beta
+          - os: macos-latest
+            toolchain: nightly
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
