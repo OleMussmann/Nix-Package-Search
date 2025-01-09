@@ -293,7 +293,7 @@ fn cache_creation() {
 
     let output = cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_path.join("nps.cache")).unwrap();
+    let cache_content = fs::read_to_string(temp_path.join("nps.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 
@@ -307,7 +307,7 @@ fn cache_creation() {
 #[ignore]
 /// Testing the creation of new caches. This requires internet connection, so
 /// it is disabled by default.
-fn experimental_cache_creation() -> () {
+fn experimental_cache_creation() {
     init();
 
     let temp_dir = TempDir::new().unwrap();
@@ -321,7 +321,7 @@ fn experimental_cache_creation() -> () {
 
     let output = cmd.assert().success();
 
-    let cache_content = fs::read_to_string(&temp_path.join("nps.experimental.cache")).unwrap();
+    let cache_content = fs::read_to_string(temp_path.join("nps.experimental.cache")).unwrap();
     let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
     assert!(re.is_match(&cache_content));
 
