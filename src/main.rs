@@ -6,10 +6,8 @@ use grep::{
     regex::RegexMatcherBuilder,
     searcher::SearcherBuilder,
 };
-use home;
 use log::LevelFilter;
 use serde::Deserialize;
-use serde_json;
 use std::{
     collections::HashMap,
     error::Error,
@@ -401,7 +399,7 @@ fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
     SearcherBuilder::new()
         .line_number(false)
         .build()
-        .search_slice(&matcher, &content.as_bytes(), printer.sink(&matcher))?;
+        .search_slice(&matcher, content.as_bytes(), printer.sink(&matcher))?;
 
     // into_inner gives us back the underlying writer we provided to
     // new_no_color, which is wrapped in a termcolor::NoColor. Thus, a second
@@ -419,11 +417,10 @@ fn convert_case(string: &str, ignore_case: bool) -> String {
     }
 }
 
+type MatchVecs = (Vec<String>, Vec<String>, Vec<String>);
+
 /// Sort matches into match types and pad the lines to aligned columns
-fn sort_and_pad_matches<'a>(
-    cli: &Cli,
-    raw_matches: String,
-) -> Result<(Vec<String>, Vec<String>, Vec<String>), Box<dyn Error>> {
+fn sort_and_pad_matches(cli: &Cli, raw_matches: String) -> Result<MatchVecs, Box<dyn Error>> {
     let search_term = cli.search_term.as_ref().unwrap();
 
     let mut name_lengths: Vec<usize> = vec![];
@@ -435,6 +432,7 @@ fn sort_and_pad_matches<'a>(
         // Try to get a split_line element: `.get()`,
         // use &"" if missing: `.unwrap_or(&"")`,
         // and append lengths `.len()` to *_lengths vectors.
+        #[allow(clippy::get_first)]
         name_lengths.push(split_line.get(0).unwrap_or(&"").len());
         version_lengths.push(split_line.get(1).unwrap_or(&"").len());
     }
@@ -450,6 +448,7 @@ fn sort_and_pad_matches<'a>(
     for line in raw_matches.lines() {
         let split_line: Vec<&str> = line.splitn(3, ' ').collect();
 
+        #[allow(clippy::get_first)] // supress clippy warning for this block
         let name = split_line.get(0).unwrap_or(&"");
         let version = split_line.get(1).unwrap_or(&"");
         let description = split_line.get(2).unwrap_or(&"");
@@ -465,8 +464,8 @@ fn sort_and_pad_matches<'a>(
         };
 
         // Handle case-insensitive, if requested
-        let converted_search_term = &convert_case(&search_term, cli.ignore_case);
-        let converted_name = &convert_case(&name, cli.ignore_case);
+        let converted_search_term = &convert_case(search_term, cli.ignore_case);
+        let converted_name = &convert_case(name, cli.ignore_case);
 
         // Package names from channels are prepended with "nixos." or "nixpgks."
         match cli.experimental {
@@ -495,17 +494,17 @@ fn sort_and_pad_matches<'a>(
         }
     }
 
-    return Ok((
+    Ok((
         padded_matches_exact,
         padded_matches_direct,
         padded_matches_indirect,
-    ));
+    ))
 }
 
 /// Color the search term in different match types
 fn color_matches(
     cli: &Cli,
-    sorted_padded_matches: (Vec<String>, Vec<String>, Vec<String>),
+    sorted_padded_matches: MatchVecs,
     color_choice: termcolor::ColorChoice,
 ) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
     let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) =
@@ -566,7 +565,7 @@ fn color_matches(
         .build()
         .search_slice(
             &matcher_all,
-            &padded_matches_exact.join("\n").as_bytes(),
+            padded_matches_exact.join("\n").as_bytes(),
             exact_printer.sink(&matcher),
         )?;
     SearcherBuilder::new()
@@ -574,7 +573,7 @@ fn color_matches(
         .build()
         .search_slice(
             &matcher_all,
-            &padded_matches_direct.join("\n").as_bytes(),
+            padded_matches_direct.join("\n").as_bytes(),
             direct_printer.sink(&matcher),
         )?;
     SearcherBuilder::new()
@@ -582,11 +581,11 @@ fn color_matches(
         .build()
         .search_slice(
             &matcher_all,
-            &padded_matches_indirect.join("\n").as_bytes(),
+            padded_matches_indirect.join("\n").as_bytes(),
             indirect_printer.sink(&matcher),
         )?;
 
-    return Ok((exact_buffer, direct_buffer, indirect_buffer));
+    Ok((exact_buffer, direct_buffer, indirect_buffer))
 }
 
 /// Print matches to screen in correct ordering
@@ -701,12 +700,12 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
         false => stdout.to_string(),
     };
 
-    log::trace!("trying to create folder: {:?}", &cache_folder);
+    log::trace!("trying to create folder: {:?}", cache_folder);
     // Create cache folder, if not exists
-    fs::create_dir_all(&cache_folder)?;
+    fs::create_dir_all(cache_folder)?;
     log::trace!("folder created");
 
-    log::trace!("cache_folder: {:?}", &cache_folder);
+    log::trace!("cache_folder: {:?}", cache_folder);
     log::trace!("file_path: {:?}", &file_path);
 
     // Atomic Writing: Write first to a tmp file, then persist (move) it to destination
@@ -724,7 +723,7 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
 
     log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
 
-    return Ok(());
+    Ok(())
 }
 
 fn main() -> ExitCode {
@@ -840,7 +839,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    return ExitCode::SUCCESS;
+    ExitCode::SUCCESS
 }
 
 #[cfg(test)]
