@@ -1028,4 +1028,52 @@ mod tests {
 
         assert_eq!(parsed, desired_output);
     }
+
+    #[test]
+    fn test_color_matches() {
+        init();
+
+        let cli = Cli::try_parse_from(vec!["nps", "-e=true", "mypackage"]).unwrap();
+        let exact_matches = vec!["mypackage             v1     my package description".to_string()];
+        let direct_matches = vec![
+            "mypackage_extension   v1     my package description".to_string(),
+            "mypackage_extension_2 v1.0.1 my package description".to_string(),
+        ];
+        let indirect_matches = vec![
+            "mylastpackage         v5.0.0 is not mypackage".to_string(),
+            "mylastpackage_2       v1     is not mypackage either".to_string(),
+        ];
+
+        let expect_exact_color = "\u{1b}[0m\u{1b}[1m\u{1b}[35mmypackage\u{1b}[0m             v1     my package description\n";
+        let expect_direct_color = "\u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension_2 v1.0.1 my package description\n\
+            \u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension   v1     my package description\n";
+        let expect_indirect_color = "mylastpackage_2       v1     is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m either\n\
+            mylastpackage         v5.0.0 is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m\n";
+
+        let expect_exact_no_color = "mypackage             v1     my package description\n";
+        let expect_direct_no_color = "mypackage_extension_2 v1.0.1 my package description\n\
+            mypackage_extension   v1     my package description\n";
+        let expect_indirect_no_color = "mylastpackage_2       v1     is not mypackage either\n\
+            mylastpackage         v5.0.0 is not mypackage\n";
+
+        let matches = (exact_matches, direct_matches, indirect_matches);
+
+        fn b2str(buffer: Buffer) -> String {
+            String::from_utf8(buffer.into_inner()).unwrap()
+        }
+
+        let colored_matches_color =
+            color_matches(&cli, matches.clone(), termcolor::ColorChoice::Always).unwrap();
+
+        let colored_matches_no_color =
+            color_matches(&cli, matches, termcolor::ColorChoice::Never).unwrap();
+
+        assert_eq!(expect_exact_color, b2str(colored_matches_color.0));
+        assert_eq!(expect_direct_color, b2str(colored_matches_color.1));
+        assert_eq!(expect_indirect_color, b2str(colored_matches_color.2));
+
+        assert_eq!(expect_exact_no_color, b2str(colored_matches_no_color.0));
+        assert_eq!(expect_direct_no_color, b2str(colored_matches_no_color.1));
+        assert_eq!(expect_indirect_no_color, b2str(colored_matches_no_color.2));
+    }
 }
