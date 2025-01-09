@@ -16,6 +16,13 @@ then
     exit 1
 fi
 
+echo "Checking for updates..."
+if ! cargo outdated --exit-code 1
+then
+  echo "Update packages with \`cargo update\`"
+  exit 1
+fi
+
 echo "Checking for vulnerabilities..."
 if ! cargo audit
 then
