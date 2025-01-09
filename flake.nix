@@ -23,6 +23,7 @@
 
       devShells.default = with pkgs; mkShell {
         buildInputs = [
+            cargo-audit  # check dependencies for vulnerabilities
             cargo-release  # help creating releases
             cargo-tarpaulin  # code coverage
             hyperfine  # benchmarking
