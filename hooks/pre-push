@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+
+set -eu
+
+echo "Checking formatting..."
+if ! cargo fmt -- --check
+then
+    echo "Check \`cargo fmt\`"
+    exit 1
+fi
+
+echo "Checking code style..."
+if ! cargo clippy --all-targets -- -D warnings
+then
+    echo "Check \`cargo clippy --all-targets\`"
+    exit 1
+fi
+
+echo "Checking for vulnerabilities..."
+if ! cargo audit
+then
+  echo "Check \`cargo audit\`"
+  exit 1
+fi
+
+echo "Running tests..."
+if ! cargo test -- --include-ignored
+then
+    echo "Check \`cargo test -- --include-ignored\`"
+    exit 1
+fi
+
+exit 0

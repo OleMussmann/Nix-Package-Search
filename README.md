@@ -273,7 +273,9 @@ Search ignore capitalization for the search?
 - default: true
 - possible values: true, false
 
-## Tests
+## Development
+
+### Tests
 Most tests run quick, execute them with:
 
 `cargo test`
@@ -287,7 +289,7 @@ Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tes
 
 `cargo-tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
 
-## Benchmarking
+### Benchmarking
 First build `nps` in release mode.
 
 `cargo build --release`
@@ -296,7 +298,12 @@ Then run benchmarks on the produced executable with:
 
 `hyperfine './target/release/nps -e neovim'`
 
-## Release
+### Git Hooks
+Review the hooks in the [hooks](./hooks) folder and use them with
+
+`git config core.hooksPath hooks`
+
+### Release
 
 Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Do a dry-run with:
 
