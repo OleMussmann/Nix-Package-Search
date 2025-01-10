@@ -309,7 +309,7 @@ Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased"
 
 `cargo-release release [LEVEL|VERSION]`
 
-and review the changes. Possible choices for `LEVEL` are `major`, `minor`, `patch`, `release`, `rc`, `beta`, `alpha`. Then execute the release with:
+and review the changes. Possible choices for `LEVEL` are `beta`, `alpha` or `rc` for development (pre-) releases and `major`, `minor`, `patch` or `release` (remove pre-release extension) for production releases. Then execute the release with:
 
 `cargo-release release [LEVEL|VERSION] --execute --no-publish`
 
