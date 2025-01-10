@@ -1,6 +1,6 @@
 [package]
 name = "nps"
-version = "0.2.1"
+version = "0.2.2-rc.1"
 description = "Find SEARCH_TERM in available nix packages and sort results by relevance"
 authors = ["Ole Mussmann <github+account@ole.mn>"]
 homepage = "https://github.com/OleMussmann/Nix-Package-Search"
