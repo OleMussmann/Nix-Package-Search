@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated tests via GitHub Actions
 - Releases made with cargo-release
 - Various pre-commit checks
+- Version tags for development builds
+- More tests
 
 ## [0.2.1] - 2025-01-06
 
