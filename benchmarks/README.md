@@ -1,4 +1,4 @@
-== Rust Rewrite (ae45685)
+== Rust Rewrite (v0.2.2 vs v0.1.6)
 
 === Show Help
 
