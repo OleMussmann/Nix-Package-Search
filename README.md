@@ -11,7 +11,7 @@ Find installable packages at lightning speed and sort the result by relevance, s
 
 ... in configurable individual colors, optionally separated by a newline. Have a look:
 
-![Color output of nps neovim](https://i.imgur.com/XpSo8qW.png "nps neovim")
+![Color output of nps neovim](https://i.imgur.com/wNnWdxC.png "nps avahi")
 
 ## Installation
 ### Try It Without Installing
