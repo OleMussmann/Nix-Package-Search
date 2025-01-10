@@ -30,6 +30,13 @@ then
   exit 1
 fi
 
+echo "Checking for tags..."
+if ! [[ $(git tag --points-at HEAD) ]]
+then
+  echo "Create a tag \`cargo release {major,minor,patch,release,rc,beta,alpha} --no-release [--execute]\`"
+  exit 1
+fi
+
 echo "Running tests..."
 if ! cargo test -- --include-ignored
 then
