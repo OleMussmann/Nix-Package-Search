@@ -318,7 +318,7 @@ These tests are by default disabled. Include them with
 
 Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. To generate a HTML report, run the check with
 
-`cargo-tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
+`cargo tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
 
 ### Benchmarking
 First build `nps` in release mode.
@@ -338,11 +338,11 @@ Review the hooks in the [hooks](./hooks) folder and use them with
 
 Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Do a dry-run with:
 
-`cargo-release release [LEVEL|VERSION]`
+`cargo release [LEVEL|VERSION]`
 
 and review the changes. Possible choices for `LEVEL` are `beta`, `alpha` or `rc` for development (pre-) releases and `major`, `minor`, `patch` or `release` (remove pre-release extension) for production releases. Then execute the release with:
 
-`cargo-release release [LEVEL|VERSION] --execute --no-publish`
+`cargo release [LEVEL|VERSION] --execute --no-publish`
 
 ## Contributing
 
