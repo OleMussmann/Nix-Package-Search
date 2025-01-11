@@ -17,17 +17,8 @@ Find installable packages at lightning speed and sort the result by relevance, s
 ### Try It Without Installing
     nix run github:OleMussmann/Nix-Package-Search
 
-### "Installing" The Cheater Way
-Add `nps = "nix run github:OleMussmann/Nix-Package-Search -- "` to your shell aliases. Don't forget the trailing double-dash. The program might be garbage collected every once in a while and will be automatically downloaded when needed.
-
-```nix
-programs.bash.shellAliases = {  # Replace `bash` with your shell name, if necessary.
-  nps = "nix run github:OleMussmann/Nix-Package-Search -- "
-};
-```
-
 ### Declarative Installation (Recommended)
-> :warning: The way of installing third-party flakes is highly dependent on your personal configuration. As far as I know there is no standardized, canonical way to do this. Instead, here is a generic approach via overlays. You will need to adapt it to your config files.
+> ⚠️ The way of installing third-party flakes is highly dependent on your personal configuration. As far as I know there is no standardized, canonical way to do this. Instead, here is a generic approach via overlays. You will need to adapt it to your config files.
 
 Add `nps` to your inputs:
 
@@ -46,7 +37,7 @@ Add an overlay to your outputs:
 outputs = { self, nixpkgs, ... }@inputs:
 let
   overlays-third-party = final: prev: {
-    nps = inputs.nps.defaultPackage.${prev.system};
+    nps = inputs.nps.packages.${prev.system}.default;
     <other third party flakes you have>
   };
 in {
@@ -65,9 +56,20 @@ Finally, add `nps` to your `systemPackages` in `configuration.nix`:
 ```nix
 environment.systemPackages = with pkgs; [
     git
-    nps
+    # Where to find `nps` depends on how you installed it.
+    # Here we assume your overlay is called `overlays-third-party`.
+    overlays-third-party.nps
     ...
 ];
+```
+
+### "Installing" The Cheater Way
+Add `nps = "nix run github:OleMussmann/Nix-Package-Search -- "` to your shell aliases. Don't forget the trailing double-dash. The program might be garbage collected every once in a while and will be automatically downloaded when needed.
+
+```nix
+programs.bash.shellAliases = {  # Replace `bash` with your shell name, if necessary.
+  nps = "nix run github:OleMussmann/Nix-Package-Search -- "
+};
 ```
 
 ### Local Installation
@@ -83,32 +85,64 @@ nix profile install github:OleMussmann/Nix-Package-Search
 - Copy or symlink the `target/release/nps` executable to a folder in your `PATH`, or include it in your `PATH`.
 - Dependencies: `rustc`, `cargo`
 
-## Automate package scanning (optional)
-- Set up a cron job or a systemd timer for `nps -r` (or `nps -e -r` for using the nix experimental features) at regular intervals. Make sure to do so with your local user environment.
+## Automate Package Scanning (Optional)
+Set up a cron job or a systemd timer for `nps -dddd -r` (or `nps -dddd -e -r` for using the nix experimental features a.k.a flakes) at regular intervals. Make sure to do so with your local user environment.
 
 ```nix
 systemd.timers."refresh-nps-cache" = {
-  wantedBy = [ "timers.target" ];
+    wantedBy = [ "timers.target" ];
     timerConfig = {
-        OnCalendar = "weekly";
+        OnCalendar = "weekly";  # or however often you'd like
         Persistent = true;
-        Unit = "hello-world.service";
+        Unit = "refresh-nps-cache.service";
     };
 };
 
 systemd.services."refresh-nps-cache" = {
-  script = ''
-    set -eu
-    nps -r  # or `nps -e -r` if you use flakes
-  '';
-  serviceConfig = {
-    Type = "simple";
-    User = "YOU";  # replace with your username or ${user}
-  };
+    # Make sure `nix` and `nix-env` are findable by systemd.services.
+    path = ["/run/current-system/sw/"];
+    serviceConfig = {
+        Type = "oneshot";
+        User = "REPLACE_ME";  # ⚠️ replace with your "username" or "${user}", if it's defined
+    };
+    script = ''
+        set -eu
+        echo "Start refreshing nps cache..."
+        # ⚠️ note the use of overlay (as described above), adjust if needed
+        # ⚠️ use nps -dddd -e -r` if you use flakes
+        ${pkgs.overlays-third-party.nps}/bin/nps -r -dddd
+        echo "... finished nps cache with exit code $?."
+    '';
 };
 ```
 
+### Testing Automated Package Scanning
+Test the service by starting it by hand and checking the logs.
+
+```bash
+sudo systemctl start refresh-nps-cache.service
+journalctl -xeu refresh-nps-cache.service
+```
+
+Test your timer by letting it run, for example, every 5 minutes. Adjust the timers as follows. Check the logs if it ran successfully.
+
+```diff
+-OnCalendar = "weekly";
++OnBootSec = "5m";
++OnUnitActiveSec = "5m";
+```
+
+```bash
+journalctl -xeu refresh-nps-cache.service
+```
+
+Don't forget to revert your changes afterwards.
+
 ## Usage
+
+- `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string.
+- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by capturing the output of `nix-env -qaP`  (or `nix search nixpkgs ^` for experimental/flake mode). Subsequent queries are much faster.
+
 ```markdown
 Find SEARCH_TERM in available nix packages and sort results by relevance
 
@@ -191,25 +225,22 @@ Options:
           Print version
 ```
 
-- `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string, see image above.
-- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by calling `nix-env -qaP`  (or `nix search nixpkgs ^` for experimental mode) and writing the output to a cache file. Subsequent queries are much faster.
-
 ### Configuration
 
-`nps` can be configured with environment variables. You can set these in your config file. Below are the defaults. You only need to set the ones you want to have changed.
+Apart from command line flags, `nps` can be configured with environment variables. You can set these in your config file. Below are the defaults. Uncomment and change the ones you need.
 
 ```nix
 environment.sessionVariables = rec {
-    NIX_PACKAGE_SEARCH_EXPERIMENTAL = "false";  # Set to "true" for flakes
-    NIX_PACKAGE_SEARCH_FLIP = "false";
-    NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH = "/home/YOU/.nix-package-search";  # replace "YOU"!
-    NIX_PACKAGE_SEARCH_COLUMNS = "all";
-    NIX_PACKAGE_SEARCH_EXACT_COLOR = "magenta";
-    NIX_PACKAGE_SEARCH_DIRECT_COLOR = "blue";
-    NIX_PACKAGE_SEARCH_INDIRECT_COLOR = "green";
-    NIX_PACKAGE_SEARCH_COLOR_MODE = "auto";
-    NIX_PACKAGE_SEARCH_PRINT_SEPARATOR = "true";
-    NIX_PACKAGE_SEARCH_IGNORE_CASE = "true";
+    #NIX_PACKAGE_SEARCH_EXPERIMENTAL = "false";  # Set to "true" for flakes
+    #NIX_PACKAGE_SEARCH_FLIP = "false";
+    #NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH = "/home/YOUR_USERNAME/.nix-package-search";
+    #NIX_PACKAGE_SEARCH_COLUMNS = "all";
+    #NIX_PACKAGE_SEARCH_EXACT_COLOR = "magenta";
+    #NIX_PACKAGE_SEARCH_DIRECT_COLOR = "blue";
+    #NIX_PACKAGE_SEARCH_INDIRECT_COLOR = "green";
+    #NIX_PACKAGE_SEARCH_COLOR_MODE = "auto";
+    #NIX_PACKAGE_SEARCH_PRINT_SEPARATOR = "true";
+    #NIX_PACKAGE_SEARCH_IGNORE_CASE = "true";
 };
 ```
 
@@ -228,7 +259,7 @@ Flip the order of matches? By default most relevant matches appear below, which 
 #### `NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH`
 Absolute path of the cache folder
 
-- default: /home/ole/.nix-package-search
+- default: /home/YOUR_USERNAME/.nix-package-search
 - possible values: path
 
 #### `NIX_PACKAGE_SEARCH_COLUMNS`
