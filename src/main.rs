@@ -647,8 +647,7 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
     log::info!("Refreshing cache");
 
     let cache_folder = file_path.parent().unwrap();
-    log::info!("file_path: {:?}", file_path);
-    log::info!("cache_folder: {:?}", cache_folder);
+    log::trace!("file_path: {:?}", file_path);
 
     let output = match experimental {
         true => Command::new("nix")
@@ -758,7 +757,7 @@ fn main() -> ExitCode {
                 log::debug!("Running in terminal, clap::ColorChoice set to Auto");
                 termcolor::ColorChoice::Auto
             } else {
-                log::warn!("Not running in terminal, ColorCoice forced to Never");
+                log::warn!("Not running in terminal, clap::ColorCoice forced to Never");
                 termcolor::ColorChoice::Never
             }
         }
