@@ -16,8 +16,8 @@
       naersk' = pkgs.callPackage naersk {};
     in rec
     {
-      defaultPackage = packages.nps;
-      packages.nps = naersk'.buildPackage {
+      defaultPackage = packages.default;
+      packages.default = naersk'.buildPackage {
           src = ./.;
       };
 
