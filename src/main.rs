@@ -719,7 +719,14 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
 
     let cache_content = match experimental {
         true => parse_json_to_lines(stdout).map_err(|err| format!("Can't parse JSON: {err}"))?,
-        false => stdout.to_string(),
+        false => {
+            // Replace in every line the first two series of whitespaces with single spaces
+            let re = regex::RegexBuilder::new(r"^([^ ]+) +([^ ]+) +(.*)$")
+                .multi_line(true)
+                .build()
+                .unwrap();
+            re.replace_all(stdout, "$1 $2 $3").to_string()
+        }
     };
 
     log::trace!("trying to create folder: {:?}", cache_folder);
