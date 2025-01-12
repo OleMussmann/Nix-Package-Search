@@ -519,7 +519,7 @@ fn color_matches(
     cli: &Cli,
     sorted_padded_matches: MatchVecs,
     color_choice: termcolor::ColorChoice,
-) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
+) -> Result<[Buffer; 3], Box<dyn Error>> {
     let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) =
         sorted_padded_matches;
     let search_term = cli
@@ -605,40 +605,32 @@ fn color_matches(
         )
         .map_err(|err| format!("Can't build searcher: {err}"))?;
 
-    Ok((exact_buffer, direct_buffer, indirect_buffer))
+    Ok([exact_buffer, direct_buffer, indirect_buffer])
 }
 
 /// Print matches to screen in correct ordering
-fn print_matches(
-    cli: &Cli,
-    colored_matches: (Buffer, Buffer, Buffer),
-) -> Result<(), Box<dyn Error>> {
-    let (exact_buffer, direct_buffer, indirect_buffer) = colored_matches;
-
-    // Use newlines as separators, if requested
-    let sep = match cli.separate {
-        true => "\n".to_string(),
-        false => "".to_string(),
-    };
-
+fn print_matches(cli: &Cli, colored_matches: [Buffer; 3]) -> Result<(), Box<dyn Error>> {
     // Assemble match type string segments
-    let mut out: Vec<String> = vec![
-        String::from_utf8(exact_buffer.into_inner())
-            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
-        sep.clone(),
-        String::from_utf8(direct_buffer.into_inner())
-            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
-        sep,
-        String::from_utf8(indirect_buffer.into_inner())
-            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
-    ];
+    let mut out: Vec<String> = vec![];
+    for buffer in colored_matches.into_iter() {
+        let content = String::from_utf8(buffer.into_inner())
+            .map_err(|err| format!("Can't get string from buffer: {err}"))?;
+        if !content.is_empty() {
+            out.push(content);
+        }
+    }
 
     if !cli.flip {
         out.reverse();
     }
 
+    // Use newlines as separators, if requested
+    let separator = match cli.separate {
+        true => "\n".to_string(),
+        false => "".to_string(),
+    };
     // BufferWriter introduces a newline that we need to trim for some reason
-    writeln!(io::stdout(), "{}", &out.join("").trim())
+    writeln!(io::stdout(), "{}", &out.join(&separator).trim())
         .map_err(|err| format!("Can't write to stdout: {err}"))?;
 
     Ok(())
@@ -1087,36 +1079,33 @@ mod tests {
             "mylastpackage_2       v1     is not mypackage either".to_string(),
         ];
 
-        let expect_exact_color = "\u{1b}[0m\u{1b}[1m\u{1b}[35mmypackage\u{1b}[0m             v1     my package description\n";
-        let expect_direct_color = "\u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension_2 v1.0.1 my package description\n\
-            \u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension   v1     my package description\n";
-        let expect_indirect_color = "mylastpackage_2       v1     is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m either\n\
-            mylastpackage         v5.0.0 is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m\n";
-
-        let expect_exact_no_color = "mypackage             v1     my package description\n";
-        let expect_direct_no_color = "mypackage_extension_2 v1.0.1 my package description\n\
-            mypackage_extension   v1     my package description\n";
-        let expect_indirect_no_color = "mylastpackage_2       v1     is not mypackage either\n\
-            mylastpackage         v5.0.0 is not mypackage\n";
+        let expect_color = [
+            "\u{1b}[0m\u{1b}[1m\u{1b}[35mmypackage\u{1b}[0m             v1     my package description\n",
+            "\u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension_2 v1.0.1 my package description\n\
+                \u{1b}[0m\u{1b}[1m\u{1b}[34mmypackage\u{1b}[0m_extension   v1     my package description\n",
+            "mylastpackage_2       v1     is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m either\n\
+                mylastpackage         v5.0.0 is not \u{1b}[0m\u{1b}[1m\u{1b}[32mmypackage\u{1b}[0m\n",
+        ];
+        let expect_no_color = [
+            "mypackage             v1     my package description\n",
+            "mypackage_extension_2 v1.0.1 my package description\n\
+                mypackage_extension   v1     my package description\n",
+            "mylastpackage_2       v1     is not mypackage either\n\
+                mylastpackage         v5.0.0 is not mypackage\n",
+        ];
 
         let matches = (exact_matches, direct_matches, indirect_matches);
 
-        fn b2str(buffer: Buffer) -> String {
-            String::from_utf8(buffer.into_inner()).unwrap()
-        }
-
         let colored_matches_color =
             color_matches(&cli, matches.clone(), termcolor::ColorChoice::Always).unwrap();
-
         let colored_matches_no_color =
             color_matches(&cli, matches, termcolor::ColorChoice::Never).unwrap();
 
-        assert_eq!(expect_exact_color, b2str(colored_matches_color.0));
-        assert_eq!(expect_direct_color, b2str(colored_matches_color.1));
-        assert_eq!(expect_indirect_color, b2str(colored_matches_color.2));
-
-        assert_eq!(expect_exact_no_color, b2str(colored_matches_no_color.0));
-        assert_eq!(expect_direct_no_color, b2str(colored_matches_no_color.1));
-        assert_eq!(expect_indirect_no_color, b2str(colored_matches_no_color.2));
+        for (expect, output) in std::iter::zip(
+            [expect_color, expect_no_color].concat(),
+            [colored_matches_color, colored_matches_no_color].concat(),
+        ) {
+            assert_eq!(expect, String::from_utf8(output.into_inner()).unwrap());
+        }
     }
 }
