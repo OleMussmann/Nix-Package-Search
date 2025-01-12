@@ -851,6 +851,9 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if raw_matches.is_empty() {
+        return ExitCode::FAILURE;
+    }
 
     let sorted_padded_matches = match sort_and_pad_matches(&cli, raw_matches) {
         Ok(sorted_padded_matches) => sorted_padded_matches,
