@@ -169,7 +169,11 @@ struct Cli {
         long,
         require_equals = true,
         hide = true,
-        default_value = home::home_dir().unwrap().join(DEFAULTS.cache_folder).display().to_string(),
+        default_value = home::home_dir()
+            .unwrap()  // We previously made sure this works.
+            .join(DEFAULTS.cache_folder)
+            .display()
+            .to_string(),
         value_parser = clap::value_parser!(PathBuf),
         env = "NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH"
     )]
@@ -346,7 +350,7 @@ fn option_help_text(help_text: &str) -> String {
         .replace(
             "{DEFAULT_CACHE_FOLDER}",
             &home::home_dir()
-                .unwrap()
+                .unwrap() // We previously made sure this works.
                 .join(DEFAULTS.cache_folder)
                 .display()
                 .to_string(),
@@ -386,12 +390,16 @@ fn option_help_text(help_text: &str) -> String {
 
 /// Find matches from cache file
 fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
-    let search_term = cli.search_term.as_ref().unwrap();
+    let search_term = cli
+        .search_term
+        .as_ref()
+        .ok_or("Can't get search term as ref")?;
 
     // Matcher to find search term in rows
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cli.ignore_case)
-        .build(search_term)?;
+        .build(search_term)
+        .map_err(|err| format!("Can't build regex: {err}"))?;
     // Printer collects matching rows in a Vec
     let mut printer = Standard::new_no_color(vec![]);
 
@@ -399,12 +407,14 @@ fn get_matches(cli: &Cli, content: &str) -> Result<String, Box<dyn Error>> {
     SearcherBuilder::new()
         .line_number(false)
         .build()
-        .search_slice(&matcher, content.as_bytes(), printer.sink(&matcher))?;
+        .search_slice(&matcher, content.as_bytes(), printer.sink(&matcher))
+        .map_err(|err| format!("Can't build searcher: {err}"))?;
 
     // into_inner gives us back the underlying writer we provided to
     // new_no_color, which is wrapped in a termcolor::NoColor. Thus, a second
     // into_inner gives us back the actual buffer.
-    let output = String::from_utf8(printer.into_inner().into_inner())?;
+    let output = String::from_utf8(printer.into_inner().into_inner())
+        .map_err(|err| format!("Can't parse printer string: {err}"))?;
 
     Ok(output)
 }
@@ -421,7 +431,10 @@ type MatchVecs = (Vec<String>, Vec<String>, Vec<String>);
 
 /// Sort matches into match types and pad the lines to aligned columns
 fn sort_and_pad_matches(cli: &Cli, raw_matches: String) -> Result<MatchVecs, Box<dyn Error>> {
-    let search_term = cli.search_term.as_ref().unwrap();
+    let search_term = cli
+        .search_term
+        .as_ref()
+        .ok_or("Can't get search term as ref")?;
 
     let mut name_lengths: Vec<usize> = vec![];
     let mut version_lengths: Vec<usize> = vec![];
@@ -509,7 +522,10 @@ fn color_matches(
 ) -> Result<(Buffer, Buffer, Buffer), Box<dyn Error>> {
     let (mut padded_matches_exact, mut padded_matches_direct, mut padded_matches_indirect) =
         sorted_padded_matches;
-    let search_term = cli.search_term.as_ref().unwrap();
+    let search_term = cli
+        .search_term
+        .as_ref()
+        .ok_or("Can't get search term as ref")?;
 
     // Defining different colors for different match types
     let exact_color: UserColorSpec = format!("match:fg:{:?}", &cli.exact_color).parse()?;
@@ -546,7 +562,8 @@ fn color_matches(
     // Matcher to color `search_term`
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cli.ignore_case)
-        .build(search_term)?;
+        .build(search_term)
+        .map_err(|err| format!("Can't build regex: {err}"))?;
 
     // Matcher to find _everything_, so lines without matches are still printed.
     // This can happen if certain columns are missing.
@@ -567,7 +584,8 @@ fn color_matches(
             &matcher_all,
             padded_matches_exact.join("\n").as_bytes(),
             exact_printer.sink(&matcher),
-        )?;
+        )
+        .map_err(|err| format!("Can't build searcher: {err}"))?;
     SearcherBuilder::new()
         .line_number(false)
         .build()
@@ -575,7 +593,8 @@ fn color_matches(
             &matcher_all,
             padded_matches_direct.join("\n").as_bytes(),
             direct_printer.sink(&matcher),
-        )?;
+        )
+        .map_err(|err| format!("Can't build searcher: {err}"))?;
     SearcherBuilder::new()
         .line_number(false)
         .build()
@@ -583,7 +602,8 @@ fn color_matches(
             &matcher_all,
             padded_matches_indirect.join("\n").as_bytes(),
             indirect_printer.sink(&matcher),
-        )?;
+        )
+        .map_err(|err| format!("Can't build searcher: {err}"))?;
 
     Ok((exact_buffer, direct_buffer, indirect_buffer))
 }
@@ -603,11 +623,14 @@ fn print_matches(
 
     // Assemble match type string segments
     let mut out: Vec<String> = vec![
-        String::from_utf8(exact_buffer.into_inner())?,
+        String::from_utf8(exact_buffer.into_inner())
+            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
         sep.clone(),
-        String::from_utf8(direct_buffer.into_inner())?,
+        String::from_utf8(direct_buffer.into_inner())
+            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
         sep,
-        String::from_utf8(indirect_buffer.into_inner())?,
+        String::from_utf8(indirect_buffer.into_inner())
+            .map_err(|err| format!("Can't get string from buffer: {err}"))?,
     ];
 
     if !cli.flip {
@@ -615,15 +638,17 @@ fn print_matches(
     }
 
     // BufferWriter introduces a newline that we need to trim for some reason
-    writeln!(io::stdout(), "{}", &out.join("").trim())?;
+    writeln!(io::stdout(), "{}", &out.join("").trim())
+        .map_err(|err| format!("Can't write to stdout: {err}"))?;
 
     Ok(())
 }
 
 /// Parse package info from JSON to (NAME VERSION DESCRIPTION) lines
-fn parse_json_to_lines(raw_output: &str) -> String {
+fn parse_json_to_lines(raw_output: &str) -> Result<String, Box<dyn Error>> {
     // Load JSON package info into a HashMap
-    let parsed: HashMap<String, Package> = serde_json::from_str(raw_output).unwrap();
+    let parsed: HashMap<String, Package> =
+        serde_json::from_str(raw_output).map_err(|err| format!("Can't parse JSON: {err}"))?;
 
     let mut lines = vec![];
     for (name_string, package) in parsed.into_iter() {
@@ -632,21 +657,23 @@ fn parse_json_to_lines(raw_output: &str) -> String {
         // This is different from package.pname, which contains the name
         // of the executable, which can be different from the package name.
         let name_vec: Vec<&str> = name_string.splitn(3, '.').collect();
-        let name = name_vec.get(2).unwrap();
+        let name = name_vec.get(2).ok_or("Can't get package name from JSON.")?;
         lines.push(format!(
             "{} {} {}",
             name, package.version, package.description
         ));
     }
     lines.sort();
-    lines.join("\n")
+    Ok(lines.join("\n"))
 }
 
 /// Fetch new package info and write to cache file
 fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>> {
     log::info!("Refreshing cache");
 
-    let cache_folder = file_path.parent().unwrap();
+    let cache_folder = file_path
+        .parent()
+        .ok_or("Can't get cache folder from file path")?;
     log::trace!("file_path: {:?}", file_path);
 
     let output = match experimental {
@@ -655,18 +682,22 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
             .arg("nixpkgs")
             .arg("^")
             .arg("--json")
-            .output()?,
+            .output()
+            .map_err(|err| format!("`nix search` failed: {err}"))?,
         false => Command::new("nix-env")
             .arg("-qaP")
             .arg("--description")
-            .output()?,
+            .output()
+            .map_err(|err| format!("`nix-env` failed: {err}"))?,
     };
 
     log::trace!("finished cli command");
 
     let (stdout, stderr) = (
-        str::from_utf8(&output.stdout).unwrap(),
-        str::from_utf8(&output.stderr).unwrap(),
+        str::from_utf8(&output.stdout)
+            .map_err(|err| format!("Can't convert stdout to UTF8: {err}"))?,
+        str::from_utf8(&output.stderr)
+            .map_err(|err| format!("Can't convert stdout to UTF8: {err}"))?,
     );
 
     log::trace!("stdout.len(): {}", stdout.len());
@@ -695,26 +726,30 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
     }
 
     let cache_content = match experimental {
-        true => parse_json_to_lines(stdout),
+        true => parse_json_to_lines(stdout).map_err(|err| format!("Can't parse JSON: {err}"))?,
         false => stdout.to_string(),
     };
 
     log::trace!("trying to create folder: {:?}", cache_folder);
     // Create cache folder, if not exists
-    fs::create_dir_all(cache_folder)?;
+    fs::create_dir_all(cache_folder).map_err(|err| format!("Can't create folder: {err}"))?;
     log::trace!("folder created");
 
     log::trace!("cache_folder: {:?}", cache_folder);
     log::trace!("file_path: {:?}", &file_path);
 
     // Atomic Writing: Write first to a tmp file, then persist (move) it to destination
-    let tempfile = NamedTempFile::new_in(cache_folder)?;
+    let tempfile = NamedTempFile::new_in(cache_folder)
+        .map_err(|err| format!("Can't create temp file: {err}"))?;
     log::trace!("tempfile: {:?}", &tempfile);
     log::trace!("trying to write tempfile");
-    write!(&tempfile, "{}", cache_content)?;
+    write!(&tempfile, "{}", cache_content)
+        .map_err(|err| format!("Can't write to temp file: {err}"))?;
     log::trace!("tempfile written");
 
-    tempfile.persist(file_path)?;
+    tempfile
+        .persist(file_path)
+        .map_err(|err| format!("Can't persist temp file: {err}"))?;
     log::trace!("tempfile persisted");
 
     let number_of_packages = cache_content.lines().count();
@@ -726,6 +761,14 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
 }
 
 fn main() -> ExitCode {
+    // Get home dir errors out of the way, since clap can't propagate errors
+    // from `derive`.
+    let home = home::home_dir();
+    if home.is_none() || home == Some("".into()) {
+        Builder::new().filter_level(LevelFilter::Trace).init();
+        log::error!("Can't find home dir.");
+        return ExitCode::FAILURE;
+    }
     let cli = Cli::parse();
 
     let log_level = match cli.debug {
@@ -1005,7 +1048,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_json_to_lines() {
+    fn test_parse_json_to_lines() -> Result<(), Box<dyn Error>> {
         init();
 
         let json = "{\
@@ -1023,9 +1066,10 @@ mod tests {
             myotherpackage fresh i also describe\n\
             mypackage old i describe\
             ";
-        let parsed = parse_json_to_lines(json);
+        let parsed = parse_json_to_lines(json)?;
 
         assert_eq!(parsed, desired_output);
+        Ok(())
     }
 
     #[test]
