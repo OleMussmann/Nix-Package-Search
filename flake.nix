@@ -8,32 +8,41 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay, ... }:
-  flake-utils.lib.eachDefaultSystem (system:
-    let
-      overlays = [ (import rust-overlay) ];
-      pkgs = import nixpkgs { inherit system overlays; };
-      naersk' = pkgs.callPackage naersk {};
-    in rec
-    {
-      defaultPackage = packages.default;
-      packages.default = naersk'.buildPackage {
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    naersk,
+    rust-overlay,
+    ...
+  }:
+    flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {inherit system overlays;};
+        naersk' = pkgs.callPackage naersk {};
+      in rec
+      {
+        defaultPackage = packages.default;
+        packages.default = naersk'.buildPackage {
           src = ./.;
-      };
+        };
 
-      devShells.default = with pkgs; mkShell {
-        buildInputs = [
-            cargo-audit  # check dependencies for vulnerabilities
-            cargo-edit  # package management
-            cargo-outdated  # check for dependency updates
-            cargo-release  # help creating releases
-            cargo-tarpaulin  # code coverage
-            hyperfine  # benchmarking
-            rust-bin.beta.latest.default
-        ];
-        shellHook = ''
-        '';
-      };
-    }
-  );
+        devShells.default = with pkgs;
+          mkShell {
+            buildInputs = [
+              alejandra # nix formatting
+              cargo-audit # check dependencies for vulnerabilities
+              cargo-edit # package management
+              cargo-outdated # check for dependency updates
+              cargo-release # help creating releases
+              cargo-tarpaulin # code coverage
+              hyperfine # benchmarking
+              rust-bin.beta.latest.default
+            ];
+            shellHook = ''
+            '';
+          };
+      }
+    );
 }
