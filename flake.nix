@@ -11,11 +11,11 @@
 
   outputs = {
     self,
-    nixpkgs,
+    flake-compat,
     flake-utils,
     naersk,
+    nixpkgs,
     rust-overlay,
-    ...
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
