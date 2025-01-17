@@ -13,25 +13,22 @@ jobs:
     name: release nps
     runs-on: ubuntu-latest
     steps:
-      - name: Set tag env var
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Create release text
-        env:
-          tag: ${{ github.ref_name }}
         run: |
-          echo "Release version: ${RELEASE_VERSION}"
-          sed -e "/^## \\[${RELEASE_VERSION:1}\\]/,/^## / ! d" CHANGELOG.md | head -n -2 > RELEASE.md
+          echo grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/" >> $TAG
+          echo "Tag: '${TAG}'"
+          sed -e "/^## \\[${TAG}\\]/,/^## / ! d" CHANGELOG.md | head -n -2 > RELEASE.md
           echo >> RELEASE.md
-          sed -e "/^\\[${RELEASE_VERSION:1}\\]: / ! d;s/^\\[${RELEASE_VERSION:1}\\]: \(.*\)/**Full Changelog**: \1/" CHANGELOG.md >> RELEASE.md
+          sed -e "/^\\[${TAG}\\]: / ! d;s/^\\[${TAG}\\]: \(.*\)/**Full Changelog**: \1/" CHANGELOG.md >> RELEASE.md
           echo "Release text:"
           cat RELEASE.md
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
         run: |
-          gh release create "$tag" \
+          echo grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/" >> $TAG
+          gh release create v"$TAG" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --title="${GITHUB_REPOSITORY#*/} v${TAG#v}" \
               --notes-file="./RELEASE.md" \
               --draft
