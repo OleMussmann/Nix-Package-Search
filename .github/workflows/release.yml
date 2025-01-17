@@ -13,6 +13,7 @@ jobs:
     name: release nps
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Create release text
         run: |
           TAG=$(grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/")
