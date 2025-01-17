@@ -5,9 +5,9 @@ Cache the nix package list, query and sort by relevance.
 
 Find installable packages at lightning speed and sort the result by relevance, split by ...
 
-- exact hits, the package _matching your exact string_
-- direct hits, packages that _start with the search string_
-- indirect hits, packages that _contain the search string_
+- indirect hits - packages that _contain the search string_,
+- direct hits - packages that _start with the search string_,
+- exact hits - the package that _matches your exact string_,
 
 ... in configurable individual colors, optionally separated by a newline. Have a look:
 
@@ -15,9 +15,18 @@ Find installable packages at lightning speed and sort the result by relevance, s
 
 ## Installation
 ### Try It Without Installing
-    nix run github:OleMussmann/Nix-Package-Search
+#### Flakes ❄️
+```bash
+nix run github:OleMussmann/Nix-Package-Search -- COMMAND_LINE_OPTIONS
+```
+
+#### No Flakes ☀️
+```bash
+nix-shell -p '(builtins.getFlake "github:OleMussmann/Nix-Package-Search").packages.${builtins.currentSystem}.nps' --run "nps COMMAND_LINE_OPTIONS"
+```
 
 ### Declarative Installation (Recommended)
+#### Flakes ❄️
 > ⚠️ The way of installing third-party flakes is highly dependent on your personal configuration. As far as I know there is no standardized, canonical way to do this. Instead, here is a generic approach via overlays. You will need to adapt it to your config files.
 
 Add `nps` to your inputs:
@@ -36,7 +45,7 @@ Add an overlay to your outputs:
 ```nix
 outputs = { self, nixpkgs, ... }@inputs:
 let
-  overlays-third-party = final: prev: {
+  third-party-packages = final: prev: {
     nps = inputs.nps.packages.${prev.system}.default;
     <other third party flakes you have>
   };
@@ -44,7 +53,7 @@ in {
   nixosConfigurations."<hostname>" = nixpkgs.lib.nixosSystem {
     system = "<your_system_architecture>";
     modules = [
-      ({ config, pkgs, ... }: { nixpkgs.overlays = [ overlays-third-party ]; })
+      ({ config, pkgs, ... }: { nixpkgs.overlays = [ third-party-packages ]; })
       ./configuration.nix
     ];
   };
@@ -55,38 +64,30 @@ Finally, add `nps` to your `systemPackages` in `configuration.nix`:
 
 ```nix
 environment.systemPackages = with pkgs; [
-    git
-    # Where to find `nps` depends on how you installed it.
-    # Here we assume your overlay is called `overlays-third-party`.
-    overlays-third-party.nps
+    other_packages
+    third-party-packages.nps
     ...
 ];
 ```
 
-### "Installing" The Cheater Way
-Add `nps = "nix run github:OleMussmann/Nix-Package-Search -- "` to your shell aliases. Don't forget the trailing double-dash. The program might be garbage collected every once in a while and will be automatically downloaded when needed.
+#### No Flakes ☀️
+Add `nps` to your `systemPackages` in `configuration.nix`:
 
 ```nix
-programs.bash.shellAliases = {  # Replace `bash` with your shell name, if necessary.
-  nps = "nix run github:OleMussmann/Nix-Package-Search -- "
-};
-```
-
-### Local Installation
-Directly installing in your `nix profile` is generally discouraged, since it is not declarative.
-
-```nix
-nix profile install github:OleMussmann/Nix-Package-Search
+environment.systemPackages = with pkgs; [
+    other_packages
+    (builtins.getFlake "github:OleMussmann/Nix-Package-Search").packages.${builtins.currentSystem}.nps
+    ...
+];
 ```
 
 ### By Hand
-- Clone this repository.
-- Build with `cargo build --release`.
+- Clone this repository and `cd Nix-Package-Search` into it.
+- Build with `cargo build --release`. Dependencies needed: `gcc`, `cargo`
 - Copy or symlink the `target/release/nps` executable to a folder in your `PATH`, or include it in your `PATH`.
-- Dependencies: `rustc`, `cargo`
 
 ## Automate Package Scanning (Optional)
-Set up a cron job or a systemd timer for `nps -dddd -r` (or `nps -dddd -e -r` for using the nix experimental features a.k.a flakes) at regular intervals. Make sure to do so with your local user environment.
+You can run `nps -r` (or `nps -e -r` for using the nix "experimental" features a.k.a flakes) every once in a while to refresh the package cache, or you can set up a systemd timer at regular intervals. If you automate it, make sure to do so with your local user environment.
 
 ```nix
 systemd.timers."refresh-nps-cache" = {
@@ -109,39 +110,39 @@ systemd.services."refresh-nps-cache" = {
         set -eu
         echo "Start refreshing nps cache..."
         # ⚠️ note the use of overlay (as described above), adjust if needed
-        # ⚠️ use nps -dddd -e -r` if you use flakes
-        ${pkgs.overlays-third-party.nps}/bin/nps -r -dddd
+        # ⚠️ use `nps -dddd -e -r` if you use flakes
+        ${pkgs.third-party-packages.nps}/bin/nps -r -dddd
         echo "... finished nps cache with exit code $?."
     '';
 };
 ```
 
 ### Testing Automated Package Scanning
-Test the service by starting it by hand and checking the logs.
+- Test the service by starting it by hand and checking the logs.
+  ```bash
+  sudo systemctl start refresh-nps-cache.service
+  journalctl -xeu refresh-nps-cache.service
+  ```
 
-```bash
-sudo systemctl start refresh-nps-cache.service
-journalctl -xeu refresh-nps-cache.service
-```
+- Test your timer by letting it run, for example, every 5 minutes. Adjust the timers as follows.
 
-Test your timer by letting it run, for example, every 5 minutes. Adjust the timers as follows. Check the logs if it ran successfully.
+  ```diff
+  -OnCalendar = "weekly";
+  +OnBootSec = "5m";
+  +OnUnitActiveSec = "5m";
+  ```
 
-```diff
--OnCalendar = "weekly";
-+OnBootSec = "5m";
-+OnUnitActiveSec = "5m";
-```
+  Check the logs if it ran successfully.
+  ```bash
+  journalctl -xeu refresh-nps-cache.service
+  ```
 
-```bash
-journalctl -xeu refresh-nps-cache.service
-```
-
-Don't forget to revert your changes afterwards.
+  ⚠️  Don't forget to revert your changes afterwards.
 
 ## Usage
 
 - `nps PACKAGE_NAME` searches the cache file for packages matching the `PACKAGE_NAME` search string.
-- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by capturing the output of `nix-env -qaP`  (or `nix search nixpkgs ^` for experimental/flake mode). Subsequent queries are much faster.
+- The cache is created on the first call. Be patient, it might take a while. This is done under the hood by capturing the output of `nix-env -qaP`  (or `nix search nixpkgs ^` for "experimental"/flake mode). Subsequent queries are much faster.
 
 ```markdown
 Find SEARCH_TERM in available nix packages and sort results by relevance
@@ -230,7 +231,7 @@ Options:
 Apart from command line flags, `nps` can be configured with environment variables. You can set these in your config file. Below are the defaults. Uncomment and change the ones you need.
 
 ```nix
-environment.sessionVariables = rec {
+environment.sessionVariables = {
     #NIX_PACKAGE_SEARCH_EXPERIMENTAL = "false";  # Set to "true" for flakes
     #NIX_PACKAGE_SEARCH_FLIP = "false";
     #NIX_PACKAGE_SEARCH_CACHE_FOLDER_ABSOLUTE_PATH = "/home/YOUR_USERNAME/.nix-package-search";
@@ -304,48 +305,8 @@ Search ignore capitalization for the search?
 - default: true
 - possible values: true, false
 
-## Development
-
-### Tests
-Most tests run quick, execute them with:
-
-`cargo test`
-
-Refreshing the cache needs a working internet connection and might take a while.
-These tests are by default disabled. Include them with
-
-`cargo test -- --include-ignored`
-
-Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. To generate a HTML report, run the check with
-
-`cargo tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored`
-
-### Benchmarking
-First build `nps` in release mode.
-
-`cargo build --release`
-
-Then run benchmarks on the produced executable with:
-
-`hyperfine './target/release/nps -e neovim'`
-
-### Git Hooks
-Review the hooks in the [hooks](./hooks) folder and use them with
-
-`git config core.hooksPath hooks`
-
-### Release
-
-Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Do a dry-run with:
-
-`cargo release [LEVEL|VERSION]`
-
-and review the changes. Possible choices for `LEVEL` are `beta`, `alpha` or `rc` for development (pre-) releases and `major`, `minor`, `patch` or `release` (remove pre-release extension) for production releases. Then execute the release with:
-
-`cargo release [LEVEL|VERSION] --execute --no-publish`
-
 ## Contributing
 
-1. Check existing issues or open a new one to suggest a feature or report a bug
-1. Fork the repository and make your changes
+1. Check existing issues or open a new one to suggest a feature or report a bug.
+1. Fork the repository, check the [DEVELOPMENT.md](DEVELOPMENT.md) and make your changes
 1. Open a pull request
