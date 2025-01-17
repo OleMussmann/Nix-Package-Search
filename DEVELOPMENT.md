@@ -41,21 +41,26 @@ git config core.hooksPath hooks
 
 ## Release
 
-Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Check if the `pre-push` hooks pass - apart from tags.
+1. Document future changes in the [CHANGELOG.md](./CHANGELOG.md) under "Unreleased". Check if the `pre-push` hooks pass - apart from tags.
 
-```bash
-./hooks/pre-push
-```
+    ```bash
+    ./hooks/pre-push
+    ```
 
-Do a dry-run with
+1. Do a dry-run with
 
-```bash
-cargo release [LEVEL|VERSION]
-```
+    ```bash
+    cargo release [LEVEL|VERSION]
+    ```
 
-and review the changes. Possible choices for `LEVEL` are `beta`, `alpha` or `rc` for development (pre-) releases and `major`, `minor`, `patch` or `release` (removes the pre-release extension) for production releases. Then execute the release. This will run the tests, tag the release and push to GitHub.
+    and review the changes. Possible choices for `LEVEL` are `beta`, `alpha` or `rc` for development (pre-) releases and `major`, `minor`, `patch` or `release` (removes the pre-release extension) for production releases.
 
-```bash
-cargo release [LEVEL|VERSION] --execute --no-publish
-```
+1. Execute the `cargo release`. This will run the tests, tag the release and push to GitHub.
 
+    ```bash
+    cargo release [LEVEL|VERSION] --execute --no-publish
+    ```
+
+1. Create a pull request for the `development` branch into `main`. If all pre-checks succeed, conclude the pull request. A release draft will is created from [CHANGELOG.md](CHANGELOG.md).
+
+1. Review the release draft under "Releases" and publish the release.
