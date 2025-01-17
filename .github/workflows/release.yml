@@ -1,4 +1,4 @@
-name: Cargo Build & Test
+name: Release
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Create release text
         run: |
-          echo grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/" >> $TAG
+          TAG=$(grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/")
           echo "Tag: '${TAG}'"
           sed -e "/^## \\[${TAG}\\]/,/^## / ! d" CHANGELOG.md | head -n -2 > RELEASE.md
           echo >> RELEASE.md
@@ -26,7 +26,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/" >> $TAG
+          TAG=$(grep "## \[" CHANGELOG.md | head -n 2 | tail -n 1 | sed "s/^## \\[\(.*\)\\].*/\1/")
           gh release create v"$TAG" \
               --repo="$GITHUB_REPOSITORY" \
               --title="${GITHUB_REPOSITORY#*/} v${TAG#v}" \
