@@ -689,11 +689,8 @@ fn parse_json_to_lines(raw_output: &str) -> Result<String, Box<dyn Error>> {
     Ok(lines.join("\n"))
 }
 
-/// Check if requested `nps` features match system features
-///
-/// Give helpful warnings if there is a mismatch.
-fn check_for_features(experimental: bool, quiet: bool) -> Result<(), Box<dyn Error>> {
-    // Check if flakes are enabled
+/// Check if flakes are enabled
+fn check_flakes_enabled() -> Result<bool, Box<dyn Error>> {
     let probe_for_flakes = Command::new("nix")
         .arg("--extra-experimental-features")
         .arg("nix-command")
@@ -715,8 +712,17 @@ fn check_for_features(experimental: bool, quiet: bool) -> Result<(), Box<dyn Err
         .status()
         .map_err(|err| format!("Can't execute `grep` command: {err}"))?;
 
-    let flakes_enabled: bool = find_flakes.success();
+    Ok(find_flakes.success())
+}
 
+/// Check if requested `nps` features match system features
+///
+/// Give helpful warnings if there is a mismatch.
+fn check_for_features(
+    flakes_enabled: bool,
+    experimental: bool,
+    quiet: bool,
+) -> Result<(), Box<dyn Error>> {
     if flakes_enabled && !experimental {
         let flakes_messages = [
             "Feature mismatch:",
@@ -745,9 +751,10 @@ fn check_for_features(experimental: bool, quiet: bool) -> Result<(), Box<dyn Err
 
 /// Fetch new package info and write to cache file
 fn refresh(experimental: bool, file_path: &PathBuf, quiet: bool) -> Result<(), Box<dyn Error>> {
+    let flakes_enabled = check_flakes_enabled()?;
     // Print helpful warnings if there is a feature mismatch
     // between the system setup and the `nps` usage.
-    check_for_features(experimental, quiet)?;
+    check_for_features(flakes_enabled, experimental, quiet)?;
 
     let cache_start_message = "Refreshing cache. This might take a while...";
     log::info!("{}", cache_start_message);
@@ -805,8 +812,14 @@ fn refresh(experimental: bool, file_path: &PathBuf, quiet: bool) -> Result<(), B
     if stdout.len() < 10_000 {
         log::warn!("Cache seems too small:");
         log::warn!("> Query returned only {} lines.", stdout.len());
-        log::info!("> Did you set up your channels yet? See: https://nixos.wiki/wiki/Nix_channels");
-        log::info!("> You can also set up your system for flakes instead. See: https://nixos.wiki/wiki/Flakes");
+        if flakes_enabled {
+            log::info!(
+                "> Did you set up your channels yet? See: https://nixos.wiki/wiki/Nix_channels"
+            );
+            log::info!(
+                "> You can also set up your system for flakes instead. See: https://nixos.wiki/wiki/Flakes"
+            );
+        }
         log::info!("> Run with `-dddd` flag for even more information.");
         return Err("Cache seems too small. Run with `-dd` flag for more information.".into());
     }
