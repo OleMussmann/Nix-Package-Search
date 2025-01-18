@@ -22,7 +22,7 @@ nix run github:OleMussmann/Nix-Package-Search -- COMMAND_LINE_OPTIONS
 
 #### No Flakes ☀️
 ```bash
-nix-shell -p '(builtins.getFlake "github:OleMussmann/Nix-Package-Search").packages.${builtins.currentSystem}.nps' --run "nps COMMAND_LINE_OPTIONS"
+nix --extra-experimental-features "nix-command flakes" run github:OleMussmann/Nix-Package-Search -- COMMAND_LINE_OPTIONS
 ```
 
 ### Declarative Installation (Recommended)
