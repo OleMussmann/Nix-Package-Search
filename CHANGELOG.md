@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- Non-debug messages for better feedback
+- Quiet option `-q/--quiet` to suppress non-debug messages
+
 ## [0.2.3] - 2025-01-17
 
 ### Added
