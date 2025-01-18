@@ -16,7 +16,7 @@ cargo test -- --include-ignored
 Use `tarpaulin` to check for code coverage. Make sure to `--include-ignored` tests and include the integration tests with `--follow-exec`. This can take a long time. To generate a HTML report, run the check with
 
 ```bash
-cargo tarpaulin --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored
+cargo tarpaulin --engine llvm --all-features --workspace --timeout 360 --out Html --follow-exec -- --include-ignored
 ```
 
 ## Benchmarking
