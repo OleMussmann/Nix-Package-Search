@@ -689,7 +689,7 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
         str::from_utf8(&output.stdout)
             .map_err(|err| format!("Can't convert stdout to UTF8: {err}"))?,
         str::from_utf8(&output.stderr)
-            .map_err(|err| format!("Can't convert stdout to UTF8: {err}"))?,
+            .map_err(|err| format!("Can't convert stderr to UTF8: {err}"))?,
     );
 
     log::trace!("stdout.len(): {}", stdout.len());
