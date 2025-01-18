@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated releases
 
 ### Deprecated
-- Installation via 'defaultPackage', use 'packages.<system>.default' instead
+- Installation via 'defaultPackage', use 'packages.\<system\>.default' instead
 
 ### Fixed
 - Update documentation
