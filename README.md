@@ -209,6 +209,12 @@ Options:
           [default: true]
           [possible values: true, false]
 
+  -q, --quiet[=<QUIET>]
+          Suppress non-debug messages
+
+          [env: NIX_PACKAGE_SEARCH_QUIET=]
+          [default: false]
+          [possible values: true, false]
   -r, --refresh
           Refresh package cache and exit
 
@@ -297,6 +303,12 @@ Show search matches in color
 Separate matches with a newline?
 
 - default: true
+- possible values: true, false
+
+#### `NIX_PACKAGE_SEARCH_QUIET`
+Suppress non-debug messages?
+
+- default: false
 - possible values: true, false
 
 #### `NIX_PACKAGE_SEARCH_IGNORE_CASE`

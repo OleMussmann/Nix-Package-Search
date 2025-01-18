@@ -33,6 +33,7 @@ const DEFAULTS: Defaults = Defaults {
     flip: false,
     ignore_case: true,
     print_separator: true,
+    quiet: false,
 
     exact_color: Colors::Magenta,
     direct_color: Colors::Blue,
@@ -139,6 +140,19 @@ struct Cli {
         env = "NIX_PACKAGE_SEARCH_IGNORE_CASE"
     )]
     ignore_case: bool,
+
+    /// Suppress non-debug messages
+    #[arg(
+        short,
+        long,
+        require_equals = true,
+        default_value_t = DEFAULTS.quiet,
+        default_missing_value = "true",
+        num_args = 0..=1,
+        action = ArgAction::Set,
+        env = "NIX_PACKAGE_SEARCH_QUIET"
+    )]
+    quiet: bool,
 
     /// Refresh package cache and exit
     #[arg(short, long)]
@@ -277,6 +291,11 @@ NIX_PACKAGE_SEARCH_PRINT_SEPARATOR
     [default: {DEFAULT_PRINT_SEPARATOR}]
     [possible values: true, false]
 
+NIX_PACKAGE_SEARCH_QUIET
+  Suppress non-debug messages?
+    [default: {DEFAULT_QUIET}]
+    [possible values: true, false]
+
 NIX_PACKAGE_SEARCH_IGNORE_CASE
   Search ignore capitalization for the search?
     [default: {DEFAULT_IGNORE_CASE}]
@@ -328,6 +347,7 @@ struct Defaults<'a> {
     flip: bool,
     ignore_case: bool,
     print_separator: bool,
+    quiet: bool,
 
     exact_color: Colors,
     direct_color: Colors,
@@ -373,6 +393,10 @@ fn option_help_text(help_text: &str) -> String {
         .replace(
             "{DEFAULT_PRINT_SEPARATOR}",
             &DEFAULTS.print_separator.to_string(),
+        )
+        .replace(
+            "{DEFAULT_QUIET}",
+            &DEFAULTS.quiet.to_string(),
         )
         .replace(
             "{DEFAULT_EXACT_COLOR}",
