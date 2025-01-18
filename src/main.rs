@@ -14,7 +14,7 @@ use std::{
     fs,
     io::{self, IsTerminal, Write},
     path::PathBuf,
-    process::{Command, ExitCode},
+    process::{Command, ExitCode, Stdio},
     str,
 };
 use tempfile::NamedTempFile;
@@ -354,6 +354,15 @@ struct Defaults<'a> {
     indirect_color: Colors,
 }
 
+/// Print messages if quiet==false
+fn message(message_string: &str, quiet: bool) -> Result<(), Box<dyn Error>> {
+    if !quiet {
+        writeln!(io::stdout(), "{}", message_string)
+            .map_err(|err| format!("Can't write to stdout: {err}"))?;
+    }
+    Ok(())
+}
+
 /// Supply Styles for colored help output.
 fn styles() -> Styles {
     Styles::styled()
@@ -394,10 +403,7 @@ fn option_help_text(help_text: &str) -> String {
             "{DEFAULT_PRINT_SEPARATOR}",
             &DEFAULTS.print_separator.to_string(),
         )
-        .replace(
-            "{DEFAULT_QUIET}",
-            &DEFAULTS.quiet.to_string(),
-        )
+        .replace("{DEFAULT_QUIET}", &DEFAULTS.quiet.to_string())
         .replace(
             "{DEFAULT_EXACT_COLOR}",
             &format!("{:?}", DEFAULTS.exact_color).to_lowercase(),
@@ -683,9 +689,69 @@ fn parse_json_to_lines(raw_output: &str) -> Result<String, Box<dyn Error>> {
     Ok(lines.join("\n"))
 }
 
+/// Check if requested `nps` features match system features
+///
+/// Give helpful warnings if there is a mismatch.
+fn check_for_features(experimental: bool, quiet: bool) -> Result<(), Box<dyn Error>> {
+    // Check if flakes are enabled
+    let probe_for_flakes = Command::new("nix")
+        .arg("--extra-experimental-features")
+        .arg("nix-command")
+        .arg("config")
+        .arg("show")
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("Can't execute `nix` command: {err}"))?;
+    let find_experimental_features = Command::new("grep")
+        .arg("^experimental-features")
+        .stdin(Stdio::from(probe_for_flakes.stdout.unwrap()))
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("Can't execute `grep` command: {err}"))?;
+    let find_flakes = Command::new("grep")
+        .arg("flakes")
+        .stdin(Stdio::from(find_experimental_features.stdout.unwrap()))
+        .stdout(Stdio::piped())
+        .status()
+        .map_err(|err| format!("Can't execute `grep` command: {err}"))?;
+
+    let flakes_enabled: bool = find_flakes.success();
+
+    if flakes_enabled && !experimental {
+        let flakes_messages = [
+            "Feature mismatch:",
+            "> Your system seems to be based on flakes.",
+            "> You may want to use `nps -e=true ...` instead to enable querying flake-based packages.",
+        ];
+        for flake_message in flakes_messages {
+            message(flake_message, quiet)?;
+            log::warn!("{}", flake_message);
+        }
+    }
+    if !flakes_enabled && experimental {
+        let channels_messages = [
+            "Feature mismatch:",
+            "> Your system seems to be based on channels.",
+            "> You may want to use `nps -e=false ...` instead to query packages from channels.",
+        ];
+        for channel_message in channels_messages {
+            message(channel_message, quiet)?;
+            log::warn!("{}", channel_message);
+        }
+    }
+
+    Ok(())
+}
+
 /// Fetch new package info and write to cache file
-fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>> {
-    log::info!("Refreshing cache");
+fn refresh(experimental: bool, file_path: &PathBuf, quiet: bool) -> Result<(), Box<dyn Error>> {
+    // Print helpful warnings if there is a feature mismatch
+    // between the system setup and the `nps` usage.
+    check_for_features(experimental, quiet)?;
+
+    let cache_start_message = "Refreshing cache. This might take a while...";
+    log::info!("{}", cache_start_message);
+    message(cache_start_message, quiet)?;
 
     let cache_folder = file_path
         .parent()
@@ -737,8 +803,12 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
 
     // Throw error if cache is too small
     if stdout.len() < 10_000 {
-        log::error!("Only {} lines in cache.", stdout.len());
-        return Err("Cache seems too small. Run with `-d` flag for more information.".into());
+        log::warn!("Cache seems too small:");
+        log::warn!("> Query returned only {} lines.", stdout.len());
+        log::info!("> Did you set up your channels yet? See: https://nixos.wiki/wiki/Nix_channels");
+        log::info!("> You can also set up your system for flakes instead. See: https://nixos.wiki/wiki/Flakes");
+        log::info!("> Run with `-dddd` flag for even more information.");
+        return Err("Cache seems too small. Run with `-dd` flag for more information.".into());
     }
 
     let cache_content = match experimental {
@@ -778,7 +848,10 @@ fn refresh(experimental: bool, file_path: &PathBuf) -> Result<(), Box<dyn Error>
     let number_of_packages = cache_content.lines().count();
     let cache_file_path_string = format!("{:?}", file_path);
 
-    log::info!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
+    let cache_end_message =
+        format!("Done. Cached info of {number_of_packages} packages in {cache_file_path_string}");
+    log::info!("{}", &cache_end_message);
+    message(&cache_end_message, quiet)?;
 
     Ok(())
 }
@@ -854,7 +927,7 @@ fn main() -> ExitCode {
     // Refresh cache with new info?
     if cli.refresh || !cache_file_exists {
         log::trace!("inside if");
-        match refresh(cli.experimental, &file_path) {
+        match refresh(cli.experimental, &file_path, cli.quiet) {
             Ok(_) => {
                 if cli.refresh {
                     return ExitCode::SUCCESS;
