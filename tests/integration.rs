@@ -1,8 +1,8 @@
 use assert_cmd::{assert::OutputAssertExt, cargo::CommandCargoExt};
 use predicates::prelude::predicate;
 use regex::Regex;
-use std::{fs, process::Command};
-use tempfile::TempDir;
+use std::{fs, io::Write, process::Command};
+use tempfile::{NamedTempFile, TempDir};
 
 fn init() {
     let _ = env_logger::builder().is_test(true).try_init();
@@ -273,60 +273,101 @@ nixpkgs.MyTestPackageName    1.0.0  Test package description
 }
 
 // The following tests are not run by default. Use
+//
 // cargo test -- --ignored
-// to execute them.
+//
+// to execute them. N.B.: By exception, we test for multiple things
+// at the same time, since these tests are expensive to run.
 #[test]
 #[ignore]
 /// Testing the creation of new caches. This requires internet connection, so
-/// it is disabled by default.
+/// it is disabled by default. We also test for correct user messages.
 fn cache_creation() {
     init();
 
+    // Create a temporary directory for a cache
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path().to_owned();
 
-    let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg(format!("--cache-folder={}", &temp_path.display()))
-        .arg("--experimental=false")
-        .arg("-dddd")
-        .arg("-r");
+    // Create a temporary directory for a nix.conf file
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let nix_conf_dir = &tempdir.path().join("nix");
+    fs::create_dir_all(nix_conf_dir).unwrap();
 
-    let output = cmd.assert().success();
+    let tempfile = NamedTempFile::new_in(&tempdir).unwrap();
+    // Enable experimental features: "nix-command" and "flakes"
+    write!(&tempfile, "experimental-features = nix-command flakes").unwrap();
+    tempfile.persist(nix_conf_dir.join("nix.conf")).unwrap();
 
-    let cache_content = fs::read_to_string(temp_path.join("nps.cache")).unwrap();
-    let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
-    assert!(re.is_match(&cache_content));
+    temp_env::with_var("XDG_CONFIG_HOME", Some(&tempdir.path()), || {
+        let mut cmd = Command::cargo_bin("nps").unwrap();
+        cmd.arg(format!("--cache-folder={}", &temp_path.display()))
+            .arg("--experimental=false")
+            .arg("-dddd")
+            .arg("-r");
 
-    println!(
-        "STDERR:\n{}",
-        String::from_utf8_lossy(&output.get_output().stderr)
-    );
+        let output = cmd.assert().success();
+
+        let cache_content = fs::read_to_string(temp_path.join("nps.cache")).unwrap();
+        let re_vim = Regex::new("vim .*popular clone of the VI editor").unwrap();
+        assert!(re_vim.is_match(&cache_content));
+
+        let re_done = Regex::new("Done. Cached info of").unwrap();
+        assert!(re_done.is_match(String::from_utf8_lossy(&output.get_output().stderr).as_ref()));
+        assert!(re_done.is_match(String::from_utf8_lossy(&output.get_output().stdout).as_ref()));
+
+        let re_flakes = Regex::new("Your system seems to be based on flakes").unwrap();
+        assert!(re_flakes.is_match(String::from_utf8_lossy(&output.get_output().stderr).as_ref()));
+        assert!(re_flakes.is_match(String::from_utf8_lossy(&output.get_output().stdout).as_ref()));
+    });
 }
 
 #[test]
 #[ignore]
 /// Testing the creation of new caches. This requires internet connection, so
-/// it is disabled by default.
+/// it is disabled by default. We also test for correct user messages and the
+/// -q/--quiet flag.
 fn experimental_cache_creation() {
     init();
 
-    let temp_dir = TempDir::new().unwrap();
-    let temp_path = temp_dir.path().to_owned();
+    // Create a temporary directory for a nix.conf file
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let nix_conf_dir = &tempdir.path().join("nix");
+    fs::create_dir_all(nix_conf_dir).unwrap();
 
-    let mut cmd = Command::cargo_bin("nps").unwrap();
-    cmd.arg(format!("--cache-folder={}", &temp_path.display()))
-        .arg("--experimental=true")
-        .arg("-dddd")
-        .arg("-r");
+    let tempfile = NamedTempFile::new_in(&tempdir).unwrap();
+    // Disable all experimental features
+    write!(&tempfile, "experimental-features = ").unwrap();
+    tempfile.persist(nix_conf_dir.join("nix.conf")).unwrap();
 
-    let output = cmd.assert().success();
+    temp_env::with_var("XDG_CONFIG_HOME", Some(&tempdir.path()), || {
+        // Create a temporary directory for a cache
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path().to_owned();
 
-    let cache_content = fs::read_to_string(temp_path.join("nps.experimental.cache")).unwrap();
-    let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
-    assert!(re.is_match(&cache_content));
+        let mut cmd = Command::cargo_bin("nps").unwrap();
+        cmd.arg(format!("--cache-folder={}", &temp_path.display()))
+            .arg("--experimental=true")
+            .arg("--quiet")
+            .arg("-dddd")
+            .arg("-r");
 
-    println!(
-        "STDERR:\n{}",
-        String::from_utf8_lossy(&output.get_output().stderr)
-    );
+        let output = cmd.assert().success();
+
+        let cache_content = fs::read_to_string(temp_path.join("nps.experimental.cache")).unwrap();
+        let re = Regex::new("vim .*popular clone of the VI editor").unwrap();
+        assert!(re.is_match(&cache_content));
+
+        let re_done = Regex::new("Done. Cached info of").unwrap();
+        assert!(re_done.is_match(String::from_utf8_lossy(&output.get_output().stderr).as_ref()));
+        // Check that we suppressed messages (--quiet works)
+        assert!(!re_done.is_match(String::from_utf8_lossy(&output.get_output().stdout).as_ref()));
+
+        let re_channels = Regex::new("Your system seems to be based on channels").unwrap();
+        assert!(re_channels.is_match(String::from_utf8_lossy(&output.get_output().stderr).as_ref()));
+        // Check that we suppressed messages (--quiet works)
+        assert!(
+            !re_channels.is_match(String::from_utf8_lossy(&output.get_output().stdout).as_ref())
+        );
+    });
 }

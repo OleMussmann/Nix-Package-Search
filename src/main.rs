@@ -767,6 +767,8 @@ fn refresh(experimental: bool, file_path: &PathBuf, quiet: bool) -> Result<(), B
 
     let output = match experimental {
         true => Command::new("nix")
+            .arg("--extra-experimental-features")
+            .arg("nix-command flakes")
             .arg("search")
             .arg("nixpkgs")
             .arg("^")
@@ -1227,5 +1229,33 @@ mod tests {
         ) {
             assert_eq!(expect, String::from_utf8(output.into_inner()).unwrap());
         }
+    }
+
+    #[test]
+    fn test_check_flakes_enabled() {
+        init();
+
+        // Create a temporary directory for a nix.conf file
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let nix_conf_dir = &tempdir.path().join("nix");
+        fs::create_dir_all(nix_conf_dir).unwrap();
+
+        let tempfile = NamedTempFile::new_in(&tempdir).unwrap();
+        // Enable experimental features: "nix-command" and "flakes"
+        write!(&tempfile, "experimental-features = nix-command flakes").unwrap();
+        tempfile.persist(nix_conf_dir.join("nix.conf")).unwrap();
+
+        temp_env::with_var("XDG_CONFIG_HOME", Some(&tempdir.path()), || {
+            assert!(check_flakes_enabled().unwrap())
+        });
+
+        let tempfile = NamedTempFile::new_in(&tempdir).unwrap();
+        // Disable all experimental features
+        write!(&tempfile, "experimental-features = ").unwrap();
+        tempfile.persist(nix_conf_dir.join("nix.conf")).unwrap();
+
+        temp_env::with_var("XDG_CONFIG_HOME", Some(&tempdir.path()), || {
+            assert!(!check_flakes_enabled().unwrap())
+        });
     }
 }
