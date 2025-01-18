@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Non-debug messages for better feedback
 - Quiet option `-q/--quiet` to suppress non-debug messages
 
+### Fixed
+- Run instructions for channel systems
+
 ## [0.2.3] - 2025-01-17
 
 ### Added
