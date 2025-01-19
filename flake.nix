@@ -27,6 +27,9 @@
         defaultPackage = packages.default;
         packages.default = naersk'.buildPackage {
           src = ./.;
+          buildInputs = with pkgs; [
+            nix
+          ];
         };
 
         devShells.default = with pkgs;
